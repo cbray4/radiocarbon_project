@@ -17,21 +17,27 @@ latitude = ""
 longitude = ""
 typeOfDate = ""
 siteIdentifier = ""
-#Other Variables
-infoCounter = 0
-#   0 : location
-#   1 : materialDated
-#   2 : labName
-#   3 : labNumber
-#   4 : age, ageSigma
-#   5 : latitude, longitude
-#   6 : typeOfDate
+
+ageAssigned = 0
+
+#For these lists, add file names of items that are set as N/A
+#i.e. if Age from 153_text is set as N/A, add 153 to ageList
+#remember, the function is .append()
+locationDict = {}
+materialDatedDict = {}
+labNameDict = {}
+labNumberDict = {}
+ageDict = {}
+latLongDict = {}
+typeOfDatDict = {}
+siteIdentifieDict = {}
 
 #--------------------
 #     FUNCTIONS
 #--------------------
 def checkBadRead(text):
-    if re.match('^[iI:;•% ]*$', text) and text != "\n":
+    #make sure to update this pattern with any other characters that show up
+    if re.match('^[iI:;•%«■rm ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -62,10 +68,11 @@ def assignLabNum(text):
 #consider making a flag so that if this is called
 #multiple times it only takes the first line given
 def assignAge(text):
-    global age, ageSigma
-    if '±' in text:
+    global age, ageSigma, ageAssigned
+    if '±' in text and ageAssigned == 0:
         age, ageSigma = text.split('±')
-    else:
+        ageAssigned = 1
+    elif ageAssigned == 0:
         age = "N/A"
         ageSigma = "N/A"
     return
@@ -100,7 +107,7 @@ def latLongFunc(text, isLong):
     #this is only my initial stab at it, so there is probably
     #a couple places where things can be improved but for now this works :)
     if isLong == 0:
-        pattern = '[nsx]'
+        pattern = '[ns]'
         positiveDir = 'n'
         negativeDir = 's'
     else:
@@ -123,7 +130,7 @@ def latLongFunc(text, isLong):
             num3 = re.search('\d+|'+pattern, text[num2.end()+num1.end():])
             if num3 != None:
                 if re.match(pattern, num3.group()):
-                    if num3.group() == positiveDir or num3.group() == 'x':
+                    if num3.group() == positiveDir:
                         modifier = 1
                         num3 = re.search('0', '0')
                     else:
@@ -183,20 +190,33 @@ def assignTypeOfDate(text):
 #--------------------
 #     CODE START
 #--------------------
+#Used to keep track of which piece of info we are on
+#convenient chart below for reference
+infoCounter = 0
+#   0 : location
+#   1 : materialDated
+#   2 : labName
+#   3 : labNumber
+#   4 : age, ageSigma
+#   5 : latitude, longitude
+#   6 : typeOfDate
 #this is a flag used to make sure infoCounter
 #does not go up after a line that is read from the
 #holes on the sides of the images
 badRead = 0
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/26000-26999/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/26000-26999/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
 directory = os.fsencode(sourceDir)
 
 
 for file in os.listdir(directory):
     filename = os.fsdecode(file)
-    print("Reading New File, " + filename)#DEBUG
+
+    #reset counters/flags here :)
     infoCounter = 0
+    ageAssigned = 0
+
     if filename.endswith(".txt"):
         #open file and read line by line and check for stuff
         readFile = open(sourceDir+filename, 'r')
@@ -204,9 +224,7 @@ for file in os.listdir(directory):
 
         for line in linesOfText:
             if checkBadRead(line) == 0:
-                print(repr(line))
                 if line == '\n' and badRead == 0:
-                    print("infoCounter has been increased.")
                     infoCounter += 1
                     continue
                 elif badRead == 1:
@@ -231,8 +249,12 @@ for file in os.listdir(directory):
                     assignLabNum(line)
                 elif infoCounter == 4:
                     assignAge(line)
+                    if age == "N/A":
+                        ageDict[filename] = line
                 elif infoCounter == 5:
                     assignLatLong(line)
+                    if latitude == "N/A" or longitude == "N/A":
+                        latLongDict[filename] = line
                 elif infoCounter == 6:
                     assignTypeOfDate(line)
                 else:
@@ -253,6 +275,16 @@ for file in os.listdir(directory):
         orgOutputFile.write("\n\nLatitude: " + latitude)
         orgOutputFile.write("\nLongitude: " + longitude)
         orgOutputFile.write("\n\nType Of Date: " + typeOfDate)
-        print("Finished Writing To File\n\n")
 
 #End Of Directory Reading
+
+#Begin printing out the content of each error list
+#be sure to update this whenever you add functionality
+#to each list
+print("***BEGIN ERDictLISTS***\n")
+print("Age Missing:")
+for file in ageDict:
+    print(file, "->", ageDict[file])
+print("\nLat/Long Missing:")
+for file in latLongDict:
+    print(file, "->", latLongDict[file])

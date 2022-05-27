@@ -9,8 +9,8 @@ import os
 import re
 
 #put the directories into strings so I can change them later if need be
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_card_copies/ocr/26000-26999/" 	#where the pdfs are stored
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/26000-26999/" 	#where the output should go
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_card_copies/ocr/7-599/" 	#where the pdfs are stored
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/" 	#where the output should go
 
 #get the directory for the pdfs as a var the os library can work with
 directory = os.fsencode(sourceDir)
@@ -19,14 +19,7 @@ directory = os.fsencode(sourceDir)
 #mostly so there can be any form of output
 fileCounter = 0
 
-#start counter variable so that this only goes through 10 pdfs
-#in order to lessen cpu strain/time taken
-#you can remove this after tests are over
-counter = 10
-
 for file in os.listdir(directory):
-	if counter == 0:
-		break
 	filename = os.fsdecode(file)
 	if filename.endswith(".pdf"):
 		#Extract text from file, then print a title to distinguish each file
@@ -44,7 +37,6 @@ for file in os.listdir(directory):
 		#this prints everything into the console/into one file
 		#print("FILENAME: " + filename + "\n")
 		#print(text + "\n")	
-		counter -= 1
 		fileCounter += 1
 		continue
 	else:
@@ -59,5 +51,3 @@ print("Files were read from " + sourceDir + ".")
 #luckily all the files have already been labled
 #serialNo = filename[:len(filename)-4]
 #basically just put this at the top of the output file
-
-#use break to exit loop early (so I only do a couple files at a time)
