@@ -17,15 +17,18 @@ latitude = ""
 longitude = ""
 typeOfDate = ""
 siteIdentifier = ""
-#Other Variables
-infoCounter = 0
-#   0 : location
-#   1 : materialDated
-#   2 : labName
-#   3 : labNumber
-#   4 : age, ageSigma
-#   5 : latitude, longitude
-#   6 : typeOfDate
+
+#For these lists, add file names of items that are set as N/A
+#i.e. if Age from 153_text is set as N/A, add 153 to ageList
+#remember, the function is .append()
+locationList = [""]
+materialDatedList = [""]
+labNameList = [""]
+labNumberList = [""]
+ageList = [""]
+latLongList = [""]
+typeOfDateList = [""]
+siteIdentifierList = [""]
 
 #--------------------
 #     FUNCTIONS
@@ -100,7 +103,7 @@ def latLongFunc(text, isLong):
     #this is only my initial stab at it, so there is probably
     #a couple places where things can be improved but for now this works :)
     if isLong == 0:
-        pattern = '[nsx]'
+        pattern = '[ns]'
         positiveDir = 'n'
         negativeDir = 's'
     else:
@@ -123,7 +126,7 @@ def latLongFunc(text, isLong):
             num3 = re.search('\d+|'+pattern, text[num2.end()+num1.end():])
             if num3 != None:
                 if re.match(pattern, num3.group()):
-                    if num3.group() == positiveDir or num3.group() == 'x':
+                    if num3.group() == positiveDir:
                         modifier = 1
                         num3 = re.search('0', '0')
                     else:
@@ -183,6 +186,16 @@ def assignTypeOfDate(text):
 #--------------------
 #     CODE START
 #--------------------
+#Used to keep track of which piece of info we are on
+#convenient chart below for reference
+infoCounter = 0
+#   0 : location
+#   1 : materialDated
+#   2 : labName
+#   3 : labNumber
+#   4 : age, ageSigma
+#   5 : latitude, longitude
+#   6 : typeOfDate
 #this is a flag used to make sure infoCounter
 #does not go up after a line that is read from the
 #holes on the sides of the images
@@ -204,9 +217,7 @@ for file in os.listdir(directory):
 
         for line in linesOfText:
             if checkBadRead(line) == 0:
-                print(repr(line))
                 if line == '\n' and badRead == 0:
-                    print("infoCounter has been increased.")
                     infoCounter += 1
                     continue
                 elif badRead == 1:
@@ -231,8 +242,12 @@ for file in os.listdir(directory):
                     assignLabNum(line)
                 elif infoCounter == 4:
                     assignAge(line)
+                    if age == "N/A":
+                        ageList.append(filename)
                 elif infoCounter == 5:
                     assignLatLong(line)
+                    if latitude == "N/A":
+                        latLongList(filename)
                 elif infoCounter == 6:
                     assignTypeOfDate(line)
                 else:
