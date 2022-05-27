@@ -3,6 +3,7 @@ import re
 
 #this'll let me iterate through all the text files in the raw_output directory
 import os
+from unittest import result
 
 #setup information variables (store info to print from txt files)
 #all of these are the necessary info for the spreadsheet
@@ -73,31 +74,7 @@ def assignTypeOfDate(text):
     global typeOfDate
     typeOfDate = text
 
-def assignLatLong(text):
-    global latitude, longitude
-    #FORMAT: Lat. ##°(##'##") x Long. ##°(##'##")
-    #N = +, S = -
-    #E = +, W = -
-
-    #TODO
-    #I can halve the size of this by simply having two dif
-    #variables for the text patterns, one for lat one for long
-    #latNum/longNum can be replaced by some other temp variable
-    #shove it into its own function and have a var
-    #that tells it to switch to the other pattern
-
-    #converting to lowercase makes if statements much easier to read
-    #by allowing us to avoid checking for uppercase
-    newText = str(text).lower()
-    #splits the lat/long down the middle where the X is
-    #means that we don't have to do weird substring stuff
-    if 'x' in newText:
-        latText, longText = newText.split('x') 
-    else:
-        latitude = "N/A"
-        longitude = "N/A"
-        return
-
+def latLongFunc(text, isLong):
     #Here's the rundown on what all of this bs is doing
     #Using regex we search for numbers. Whenever we find numbers
     #we assign them to variables latNum/longNum
@@ -122,73 +99,70 @@ def assignLatLong(text):
             #be that little bit faster though? idk talk to Collin about it 
     #this is only my initial stab at it, so there is probably
     #a couple places where things can be improved but for now this works :)
-    latNum1 = re.search('\d+', latText)
-    if latNum1 != None:
-        latNum2 = re.search('\d+|[ns]', latText[latNum1.end():])
-        if latNum2.group()== 'n':
-            latModifier = 1
-            latNum2 = re.search('0', '0')
-            latNum3 = re.search('0', '0')
-        elif latNum2.group() == 's':
-            latModifier = -1
-            latNum2 = re.search('0', '0')
-            latNum3 = re.search('0', '0')
+    if isLong == 0:
+        pattern = '[nsx]'
+        positiveDir = 'n'
+        negativeDir = 's'
+    else:
+        pattern = '[ew]'
+        positiveDir = 'e'
+        negativeDir = 'w'
+
+    num1 = re.search('\d+', text)
+    if num1 != None:
+        num2 = re.search('\d+|'+pattern, text[num1.end():])
+        if num2.group()== positiveDir:
+            modifier = 1
+            num2 = re.search('0', '0')
+            num3 = re.search('0', '0')
+        elif num2.group() == negativeDir:
+            modifier = -1
+            num2 = re.search('0', '0')
+            num3 = re.search('0', '0')
         else:
-            latNum3 = re.search('\d+|[nsx]', latText[latNum2.end()+latNum1.end():])
-            if latNum3 != None:
-                if re.match('[nsx]', latNum3.group()):
-                    if latNum3.group() == 'n' or latNum3.group() == 'x':
-                        latModifier = 1
-                        latNum3 = re.search('0', '0')
+            num3 = re.search('\d+|'+pattern, text[num2.end()+num1.end():])
+            if num3 != None:
+                if re.match(pattern, num3.group()):
+                    if num3.group() == positiveDir or num3.group() == 'x':
+                        modifier = 1
+                        num3 = re.search('0', '0')
                     else:
-                        latModifier = -1
-                        latNum3 = re.search('0', '0')
+                        modifier = -1
+                        num3 = re.search('0', '0')
                 else:
-                    modText = re.search('[nsx]', latText[latNum3.end():])
-                    if modText.group() == 's':
-                        latModifier = -1
+                    modText = re.search(pattern, text[num3.end():])
+                    if modText.group() == negativeDir:
+                        modifier = -1
                     else:
-                        latModifier = 1
+                        modifier = 1
             else:
-                latNum3 = re.search('0', '0')
-                latModifier = 1
-        latitude = str((int(latNum1.group()) + int(latNum2.group())/60.0 + int(latNum3.group())/3600.0) * latModifier)
+                num3 = re.search('0', '0')
+                modifier = 1
+        result = str((int(num1.group()) + int(num2.group())/60.0 + int(num3.group())/3600.0) * modifier)
+    else:
+        result = "N/A"
+    return result
+
+def assignLatLong(text):
+    global latitude, longitude
+    #FORMAT: Lat. ##°(##'##") x Long. ##°(##'##")
+    #N = +, S = -
+    #E = +, W = -
+
+    #converting to lowercase makes if statements much easier to read
+    #by allowing us to avoid checking for uppercase
+    newText = str(text).lower()
+    #splits the lat/long down the middle where the X is
+    #means that we don't have to do weird substring stuff
+    if 'x' in newText:
+        latText, longText = newText.split('x') 
     else:
         latitude = "N/A"
-
-    longNum1 = re.search('\d+', longText)
-    if longNum1 != None:
-        longNum2 = re.search('\d+|[ew]', longText[longNum1.end():])
-        if longNum2.group() == 'e':
-            longModifier = 1
-            longNum2 = re.search('0', '0')
-            longNum3 = re.search('0', '0')
-        elif longNum2.group() == 'w':
-            longModifier = -1
-            longNum2 = re.search('0', '0')
-            longNum3 = re.search('0', '0')
-        else:
-            longNum3 = re.search('\d+|[ew]', longText[longNum2.end()+longNum1.end():])
-            if longNum3 != None:
-                if re.match('[ew]', longNum3.group()):
-                    if longNum3.group() == 'e':
-                        longModifier = 1
-                        longNum3 = re.search('0', '0')
-                    else:
-                        longModifier = -1
-                        longNum3 = re.search('0', '0')
-                else:
-                    modText = re.search('[ew]', longText[longNum3.end():])
-                    if modText.group() == 'w':
-                        longModifier = -1
-                    else:
-                        longModifier = 1
-            else:
-                longNum3 = re.search('0', '0')
-                longModifier = 1
-        longitude = str((int(longNum1.group()) + int(longNum2.group())/60.0 + int(longNum3.group())/3600.0) * longModifier)
-    else:
         longitude = "N/A"
+        return
+
+    latitude = latLongFunc(latText, 0)
+    longitude = latLongFunc(longText, 1)
     
     #Error NOTE Section:
         #use this to detail common errors you run into that we should fix :)
