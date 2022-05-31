@@ -1,13 +1,8 @@
 import re
 
-text = "This 12'24 is a 34 test string, have fun!"
-latNum1 = re.search('\d+', text)
-print(str(latNum1.end()) + " " + latNum1.group())
-
-text = text[latNum1.end():]
-print(text)
-latNum2 = re.search('\d+|[xX]', text)
-print(str(latNum2.end()) + " " + latNum2.group())
+text = "super lame laboratory ivic-768"
+matchObject = re.search('[0-9a-z\-]+-(\d)+', text)
+print(matchObject.group())
 
 newText = "I"
 

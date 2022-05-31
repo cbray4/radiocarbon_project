@@ -3,7 +3,6 @@ import re
 
 #this'll let me iterate through all the text files in the raw_output directory
 import os
-from unittest import result
 
 #setup information variables (store info to print from txt files)
 #all of these are the necessary info for the spreadsheet
@@ -29,7 +28,7 @@ labNameDict = {}
 labNumberDict = {}
 ageDict = {}
 latLongDict = {}
-typeOfDatDict = {}
+typeOfDateDict = {}
 siteIdentifieDict = {}
 
 #--------------------
@@ -37,7 +36,7 @@ siteIdentifieDict = {}
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[iI:;•%«■rm ]*$', text) and text != "\n":
+    if re.match('^[iI:;•%«■rm^!f* ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -53,8 +52,14 @@ def assignMatDated(text):
     global materialDated
     materialDated = text
 
-def assignLabName(text):
+def assignLabName(text, dataList):
     global labName
+    possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
+    if possibleLabNum != None:
+        if 'labNumber' in dataList:
+            dataList.remove('labNumber')
+            assignLabNum(possibleLabNum.group())
+        text = text.replace(possibleLabNum.group(), '')
     labName = text
 
 def assignLabNum(text):
@@ -67,10 +72,19 @@ def assignLabNum(text):
 #it does not get written correctly
 #consider making a flag so that if this is called
 #multiple times it only takes the first line given
-def assignAge(text):
+def assignAge(text, dataList):
     global age, ageSigma, ageAssigned
+    possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
+    if possibleLabNum != None:
+        if 'labNumber' in dataList:
+            dataList.remove('labNumber')
+            assignLabNum(possibleLabNum.group())
+        text = text.replace(possibleLabNum.group(), '')
     if '±' in text and ageAssigned == 0:
         age, ageSigma = text.split('±')
+        ageAssigned = 1
+    elif '>' in text or '^' in text and ageAssigned == 0:
+        age = text
         ageAssigned = 1
     elif ageAssigned == 0:
         age = "N/A"
@@ -79,7 +93,10 @@ def assignAge(text):
 
 def assignTypeOfDate(text):
     global typeOfDate
-    typeOfDate = text
+    if re.search('(geology)|(archaeology)|(paleontology)', text.lower()):
+        typeOfDate = text
+    else:
+        typeOfDate = 'N/A'
 
 def latLongFunc(text, isLong):
     #Here's the rundown on what all of this bs is doing
@@ -162,7 +179,7 @@ def assignLatLong(text):
     #splits the lat/long down the middle where the X is
     #means that we don't have to do weird substring stuff
     if 'x' in newText:
-        latText, longText = newText.split('x') 
+        latText, longText = newText.split('x',1) 
     else:
         latitude = "N/A"
         longitude = "N/A"
@@ -175,9 +192,8 @@ def assignLatLong(text):
         #use this to detail common errors you run into that we should fix :)
     #some of these have decimal numbers. Figure out how to account for that.
 
-def assignTypeOfDate(text):
-    global typeOfDate
-    typeOfDate = text
+def getPercentage(num1, num2):
+    return round(num1/num2 * 100, 2)
 
 #--------------------
 #       NOTES
@@ -186,6 +202,9 @@ def assignTypeOfDate(text):
 #when assigning things. Does this line have lat/long in it? does it have
 #the +- symbol? If so, then it is probably a different variable
 #so you should call a different function
+#   '[0-9a-z\-]+-(\d)+'
+#   ^ regex pattern for lab numbers. 
+
 
 #--------------------
 #     CODE START
@@ -200,10 +219,27 @@ infoCounter = 0
 #   4 : age, ageSigma
 #   5 : latitude, longitude
 #   6 : typeOfDate
+
+dataList = [
+    'location',
+    'materialDated',
+    'labName',
+    'labNumber',
+    'age',
+    'latLong',
+    'typeOfDate',
+    'siteIdentifier',
+]
+
+#used to calculate the percentage of files
+#that have errors at the end of file reading
+fileCounter = 0
+
 #this is a flag used to make sure infoCounter
 #does not go up after a line that is read from the
 #holes on the sides of the images
 badRead = 0
+
 #setup directory variables
 sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
 outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
@@ -216,8 +252,18 @@ for file in os.listdir(directory):
     #reset counters/flags here :)
     infoCounter = 0
     ageAssigned = 0
+    dataList = [
+    'location',
+    'materialDated',
+    'labName',
+    'labNumber',
+    'age',
+    'latLong',
+    'typeOfDate'
+    ]
 
     if filename.endswith(".txt"):
+        fileCounter += 1
         #open file and read line by line and check for stuff
         readFile = open(sourceDir+filename, 'r')
         linesOfText = readFile.readlines()
@@ -232,6 +278,15 @@ for file in os.listdir(directory):
                     continue
                 line = line.rstrip()
 
+                #Begin checking for specific variables in each line
+                if '±' in line or '>' in line:
+                    if 'age' in dataList:
+                        assignAge(line, dataList)
+                        dataList.remove('age')
+                elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
+                    assignLatLong(line)
+                    dataList.remove('latLong')
+
 #NOTE AREA
 #so one problem I've run into is that if the order is messed up at all
 #then the rest of the info gets ruined. So solve that.
@@ -239,24 +294,34 @@ for file in os.listdir(directory):
 #(Age/LatLong) and have specific checks for their unique symbols
 #Once they've been put in set a flag or increase infoCounter,
 #something along those lines.
-                if infoCounter == 0:
+                if infoCounter == 0 and 'location' in dataList:
                     assignLocation(line)
-                elif infoCounter == 1:
+                    dataList.remove('location')
+                elif infoCounter == 1 and 'materialDated' in dataList:
                     assignMatDated(line)
-                elif infoCounter == 2:
-                    assignLabName(line)
-                elif infoCounter == 3:
+                    dataList.remove('materialDated')
+                elif infoCounter == 2 and 'labName' in dataList:
+                    assignLabName(line, dataList)
+                    dataList.remove('labName')
+                elif infoCounter == 3 and 'labNumber' in dataList:
                     assignLabNum(line)
-                elif infoCounter == 4:
-                    assignAge(line)
+                    dataList.remove('labNumber')
+                elif infoCounter == 4 and 'age' in dataList:
+                    assignAge(line, dataList)
                     if age == "N/A":
                         ageDict[filename] = line
-                elif infoCounter == 5:
+                    else:
+                        dataList.remove('age')
+                elif infoCounter == 5 and 'latLong' in dataList:
                     assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
-                elif infoCounter == 6:
+                    else:
+                        dataList.remove('latLong')
+                elif infoCounter == 6 and 'typeOfDate' in dataList:
                     assignTypeOfDate(line)
+                    if typeOfDate == "N/A":
+                        typeOfDateDict[filename] = line
                 else:
                     break
             else:
@@ -278,13 +343,30 @@ for file in os.listdir(directory):
 
 #End Of Directory Reading
 
+if len(ageDict) > len(latLongDict):
+    largestFileError = len(ageDict)
+else:
+    largestFileError = len(latLongDict)
+#print out the numbers/percentage of files that had errors in them
+print("Percentage of files with errors: " + str(round(largestFileError/fileCounter * 100, 2)) + "%")
+print("largestFileErrors = " + str(largestFileError))
+print("fileCounter = " + str(fileCounter))
+
 #Begin printing out the content of each error list
 #be sure to update this whenever you add functionality
 #to each list
-print("***BEGIN ERDictLISTS***\n")
-print("Age Missing:")
+#Print out the amount of files missing said data
+#and the percentage.
+print("\n***BEGIN ERROR LISTS***\n")
+print("Files With Age Missing: " + str(len(ageDict)))
+print("Percentage: " + str(getPercentage(len(ageDict), fileCounter)) + "%")
 for file in ageDict:
     print(file, "->", ageDict[file])
-print("\nLat/Long Missing:")
+print("\nFiles With Lat/Long Missing: " + str(len(latLongDict)))
+print("Percentage: " + str(getPercentage(len(latLongDict), fileCounter)) + "%")
 for file in latLongDict:
     print(file, "->", latLongDict[file])
+print("\nFiles With Type Of Date Missing: " + str(len(typeOfDateDict)))
+print("Percentage: " + str(getPercentage(len(typeOfDateDict), fileCounter)) + "%")
+for file in typeOfDateDict:
+    print(file, "->", typeOfDateDict[file])
