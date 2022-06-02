@@ -14,7 +14,7 @@ ageAssigned = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1iejrmtA:;•%«■^!f*/\- ]*$', text) and text != "\n":
+    if re.match('^[1iejrmtAI:;•%«■^!f*/\- ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -66,16 +66,16 @@ def assignAge(text, dataList):
             assignLabNum(possibleLabNum.group())
         text = text.replace(possibleLabNum.group(), '')
 
-    if '±' in text and ageAssigned == 0:
+    if '±' in text:
         ageAssigned = 1
         return text.split('±')
-    elif '>' in text or '^' in text and ageAssigned == 0:
+    elif '>' in text or '^' in text:
         return text, "0"
     elif text.lower() == "modern":
         return text, "0"
-    elif ageAssigned == 0:
+    else:
         return "N/A", "N/A"
-    return
+    
 
 def assignTypeOfDate(text):
     text = text.replace(' ', '')
@@ -288,6 +288,8 @@ for file in os.listdir(directory):
                 if line == '\n' and badRead == 0:
                     #print("infoCounter increased.") #DEBUG
                     infoCounter += 1
+                    if infoCounter == 7:
+                        break
                     if skipPop == 0:
                         dataList.pop(0)
                     else:
@@ -308,7 +310,7 @@ for file in os.listdir(directory):
                             ageDict[filename] = line
                         else:
                             skipPop = 1
-                            dataList.remove('age')
+                        #    dataList.remove('age')
                         continue
                 elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
@@ -316,7 +318,7 @@ for file in os.listdir(directory):
                         latLongDict[filename] = line
                     else:
                         skipPop = 1
-                        dataList.remove('latLong')
+                    #    dataList.remove('latLong')
                     continue
 
 #NOTE AREA
@@ -335,6 +337,8 @@ for file in os.listdir(directory):
                 elif infoCounter == 3 and 'labNumber' in dataList:
                     labNumber = assignLabNum(line)
                 elif infoCounter == 4 and 'age' in dataList:
+                    if ageAssigned == 1:
+                        continue
                     age, ageSigma = assignAge(line, dataList)
                     if age == "N/A":
                         ageDict[filename] = line
@@ -350,8 +354,6 @@ for file in os.listdir(directory):
                     typeOfDate = assignTypeOfDate(line)
                     if typeOfDate == "N/A":
                         typeOfDateDict[filename] = line
-                else:
-                    break
             else:
                 badRead = 1
                 continue
