@@ -4,39 +4,17 @@ import re
 #this'll let me iterate through all the text files in the raw_output directory
 import os
 
-#setup information variables (store info to print from txt files)
-#all of these are the necessary info for the spreadsheet
-location = ""
-materialDated = ""
-labName = ""
-labNumber = ""
-age = ""
-ageSigma = ""
-latitude = ""
-longitude = ""
-typeOfDate = ""
-siteIdentifier = ""
-
+#global variable to make sure that the age only reads in the first line
 ageAssigned = 0
 
-#For these lists, add file names of items that are set as N/A
-#i.e. if Age from 153_text is set as N/A, add 153 to ageList
-#remember, the function is .append()
-locationDict = {}
-materialDatedDict = {}
-labNameDict = {}
-labNumberDict = {}
-ageDict = {}
-latLongDict = {}
-typeOfDateDict = {}
-siteIdentifieDict = {}
+
 
 #--------------------
 #     FUNCTIONS
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[iI:;•%«■rm^!f* ]*$', text) and text != "\n":
+    if re.match('^[1iejrmtA:;•%«■^!f*/\- ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -44,28 +22,29 @@ def checkBadRead(text):
         return 0
 
 def assignLocation(text):
-    global location
-    location = text
+    return text + " "
 
 def assignMatDated(text):
     #matDated also doesn't have anything special. Assign as is
-    global materialDated
-    materialDated = text
+    return text
 
 def assignLabName(text, dataList):
-    global labName
+    #this check was added since labNumber is commonly read
+    #on the same line as the labName (or age)
+    #if a match is found and labNumber hasn't already
+    #been assigned something, get that part of the string out
+    #and assign labNumber
     possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
     if possibleLabNum != None:
         if 'labNumber' in dataList:
             dataList.remove('labNumber')
             assignLabNum(possibleLabNum.group())
         text = text.replace(possibleLabNum.group(), '')
-    labName = text
+    return text
 
 def assignLabNum(text):
     #labNumber doesn't really have anything special for it, just assign it as is
-    global labNumber
-    labNumber = text
+    return text
 
 #PROBLEM
 #If the age section has more than one line
@@ -73,30 +52,37 @@ def assignLabNum(text):
 #consider making a flag so that if this is called
 #multiple times it only takes the first line given
 def assignAge(text, dataList):
-    global age, ageSigma, ageAssigned
+    global ageAssigned
+
+    #this check was added since labNumber is commonly read
+    #on the same line as the age (or labName)
+    #if a match is found and labNumber hasn't already
+    #been assigned something, get that part of the string out
+    #and assign labNumber
     possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
     if possibleLabNum != None:
         if 'labNumber' in dataList:
             dataList.remove('labNumber')
             assignLabNum(possibleLabNum.group())
         text = text.replace(possibleLabNum.group(), '')
+
     if '±' in text and ageAssigned == 0:
-        age, ageSigma = text.split('±')
         ageAssigned = 1
+        return text.split('±')
     elif '>' in text or '^' in text and ageAssigned == 0:
-        age = text
-        ageAssigned = 1
+        return text, "0"
+    elif text.lower() == "modern":
+        return text, "0"
     elif ageAssigned == 0:
-        age = "N/A"
-        ageSigma = "N/A"
+        return "N/A", "N/A"
     return
 
 def assignTypeOfDate(text):
-    global typeOfDate
+    text = text.replace(' ', '')
     if re.search('(geology)|(archaeology)|(paleontology)', text.lower()):
-        typeOfDate = text
+        return text
     else:
-        typeOfDate = 'N/A'
+        return "N/A"
 
 def latLongFunc(text, isLong):
     #Here's the rundown on what all of this bs is doing
@@ -123,6 +109,8 @@ def latLongFunc(text, isLong):
             #be that little bit faster though? idk talk to Collin about it 
     #this is only my initial stab at it, so there is probably
     #a couple places where things can be improved but for now this works :)
+    #print(text) #DEBUG
+
     if isLong == 0:
         pattern = '[ns]'
         positiveDir = 'n'
@@ -135,7 +123,7 @@ def latLongFunc(text, isLong):
     num1 = re.search('\d+', text)
     if num1 != None:
         num2 = re.search('\d+|'+pattern, text[num1.end():])
-        if num2.group()== positiveDir:
+        if num2.group() == positiveDir:
             modifier = 1
             num2 = re.search('0', '0')
             num3 = re.search('0', '0')
@@ -168,7 +156,6 @@ def latLongFunc(text, isLong):
     return result
 
 def assignLatLong(text):
-    global latitude, longitude
     #FORMAT: Lat. ##°(##'##") x Long. ##°(##'##")
     #N = +, S = -
     #E = +, W = -
@@ -178,16 +165,16 @@ def assignLatLong(text):
     newText = str(text).lower()
     #splits the lat/long down the middle where the X is
     #means that we don't have to do weird substring stuff
-    if 'x' in newText:
+    if 'x' in newText and 'tx' not in newText:
         latText, longText = newText.split('x',1) 
     else:
-        latitude = "N/A"
-        longitude = "N/A"
-        return
+        return "N/A", "N/A"
 
     latitude = latLongFunc(latText, 0)
     longitude = latLongFunc(longText, 1)
     
+    return latitude, longitude
+
     #Error NOTE Section:
         #use this to detail common errors you run into that we should fix :)
     #some of these have decimal numbers. Figure out how to account for that.
@@ -241,10 +228,33 @@ fileCounter = 0
 badRead = 0
 
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/26000-26999/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/26000-26999/"
 directory = os.fsencode(sourceDir)
 
+#The necessary information that the database needs
+location = ""
+materialDated = ""
+labName = ""
+labNumber = ""
+age = ""
+ageSigma = ""
+latitude = ""
+longitude = ""
+typeOfDate = ""
+siteIdentifier = ""
+
+#For these dictionaries, add file names of items that are set as N/A
+#i.e. if Age from 153_text is set as N/A, add 153 to ageList
+#remember, nameDict[filename] = whatever is how you add new entries
+locationDict = {}
+materialDatedDict = {}
+labNameDict = {}
+labNumberDict = {}
+ageDict = {}
+latLongDict = {}
+typeOfDateDict = {}
+siteIdentifieDict = {}
 
 for file in os.listdir(directory):
     filename = os.fsdecode(file)
@@ -252,6 +262,7 @@ for file in os.listdir(directory):
     #reset counters/flags here :)
     infoCounter = 0
     ageAssigned = 0
+    skipPop = 0
     dataList = [
     'location',
     'materialDated',
@@ -262,30 +273,51 @@ for file in os.listdir(directory):
     'typeOfDate'
     ]
 
+    location = ""
+
     if filename.endswith(".txt"):
         fileCounter += 1
         #open file and read line by line and check for stuff
         readFile = open(sourceDir+filename, 'r')
-        linesOfText = readFile.readlines()
+        linesInFile = readFile.readlines()
 
-        for line in linesOfText:
+        #print("beginning read of " + str(filename)) #DEBUG
+
+        for line in linesInFile:
             if checkBadRead(line) == 0:
                 if line == '\n' and badRead == 0:
+                    #print("infoCounter increased.") #DEBUG
                     infoCounter += 1
+                    if skipPop == 0:
+                        dataList.pop(0)
+                    else:
+                        skipPop = 0
                     continue
                 elif badRead == 1:
                     badRead = 0
                     continue
                 line = line.rstrip()
 
+                #print(repr(line)) #DEBUG
+
                 #Begin checking for specific variables in each line
                 if '±' in line or '>' in line:
                     if 'age' in dataList:
-                        assignAge(line, dataList)
-                        dataList.remove('age')
+                        age, ageSigma = assignAge(line, dataList)
+                        if age == "N/A":
+                            ageDict[filename] = line
+                        else:
+                            skipPop = 1
+                            dataList.remove('age')
+                        continue
                 elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
-                    assignLatLong(line)
-                    dataList.remove('latLong')
+                    latitude, longitude = assignLatLong(line)
+                    if latitude == "N/A" or longitude == "N/A":
+                        latLongDict[filename] = line
+                    else:
+                        skipPop = 1
+                        dataList.remove('latLong')
+                    continue
 
 #NOTE AREA
 #so one problem I've run into is that if the order is messed up at all
@@ -295,31 +327,27 @@ for file in os.listdir(directory):
 #Once they've been put in set a flag or increase infoCounter,
 #something along those lines.
                 if infoCounter == 0 and 'location' in dataList:
-                    assignLocation(line)
-                    dataList.remove('location')
+                    location += assignLocation(line)
                 elif infoCounter == 1 and 'materialDated' in dataList:
-                    assignMatDated(line)
-                    dataList.remove('materialDated')
+                    materialDated = assignMatDated(line)
                 elif infoCounter == 2 and 'labName' in dataList:
-                    assignLabName(line, dataList)
-                    dataList.remove('labName')
+                    labName = assignLabName(line, dataList)
                 elif infoCounter == 3 and 'labNumber' in dataList:
-                    assignLabNum(line)
-                    dataList.remove('labNumber')
+                    labNumber = assignLabNum(line)
                 elif infoCounter == 4 and 'age' in dataList:
-                    assignAge(line, dataList)
+                    age, ageSigma = assignAge(line, dataList)
                     if age == "N/A":
                         ageDict[filename] = line
                     else:
                         dataList.remove('age')
                 elif infoCounter == 5 and 'latLong' in dataList:
-                    assignLatLong(line)
+                    latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
                     else:
                         dataList.remove('latLong')
                 elif infoCounter == 6 and 'typeOfDate' in dataList:
-                    assignTypeOfDate(line)
+                    typeOfDate = assignTypeOfDate(line)
                     if typeOfDate == "N/A":
                         typeOfDateDict[filename] = line
                 else:
@@ -329,17 +357,36 @@ for file in os.listdir(directory):
                 continue
         #End Of File Read
 
+        #print("end of reading file " + str(filename)) #DEBUG
+
+        if location == "":
+            locationDict[filename] = ""
+        if materialDated == "":
+            materialDatedDict[filename] = ""
+        if labName == "":
+            labNameDict[filename] = ""
+        if labNumber == "":
+            labNumberDict[filename] = ""
+        if age == "" or ageSigma == "":
+            ageDict[filename] = ""
+        if latitude == "" or longitude == "":
+            latLongDict[filename] = ""
+        if typeOfDate == "":
+            typeOfDateDict[filename] = ""
+
         #Begin Writing To Text Files
         orgOutputFile = open(outputDir+filename[:len(filename)-4]+"_organized.txt", 'w')
         orgOutputFile.write("Location: " + location)
         orgOutputFile.write("\n\nMaterial Dated: " + materialDated)
         orgOutputFile.write("\n\nLab Name: " + labName)
         orgOutputFile.write("\nLab Number: " + labNumber)
-        orgOutputFile.write("\n\nAge: " + age)
-        orgOutputFile.write("\nAge Sigma: " + ageSigma)
+        orgOutputFile.write("\n\nAge: " + str(age))
+        orgOutputFile.write("\nAge Sigma: " + str(ageSigma))
         orgOutputFile.write("\n\nLatitude: " + latitude)
         orgOutputFile.write("\nLongitude: " + longitude)
         orgOutputFile.write("\n\nType Of Date: " + typeOfDate)
+        orgOutputFile.close()
+        readFile.close()
 
 #End Of Directory Reading
 
