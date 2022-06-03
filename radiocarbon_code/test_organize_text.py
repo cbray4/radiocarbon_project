@@ -6,7 +6,9 @@ import os
 
 #global variable to make sure that the age only reads in the first line
 ageAssigned = 0
-
+#used in assignAge() to tell it to take the next line
+#(after reading in Older than) and setting that as age
+olderCheck = 0
 
 
 #--------------------
@@ -14,7 +16,7 @@ ageAssigned = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1iejrmtAI:;•%«■^!f*/\- ]*$', text) and text != "\n":
+    if re.match('^[1iejrmtAI:;•%«■^\'!f*/\- ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -52,7 +54,7 @@ def assignLabNum(text):
 #consider making a flag so that if this is called
 #multiple times it only takes the first line given
 def assignAge(text, dataList):
-    global ageAssigned
+    global ageAssigned, olderCheck
 
     #this check was added since labNumber is commonly read
     #on the same line as the age (or labName)
@@ -66,19 +68,32 @@ def assignAge(text, dataList):
             assignLabNum(possibleLabNum.group())
         text = text.replace(possibleLabNum.group(), '')
 
+    if olderCheck == 1:
+        return text, ""
+
     if '±' in text:
         ageAssigned = 1
-        return text.split('±')
+        return text.split('±', 1)
     elif '>' in text or '^' in text:
+        ageAssigned = 1
         return text, "0"
     elif text.lower() == "modern":
+        ageAssigned = 1
         return text, "0"
+    elif re.search("older than", text.lower()):
+        if text.lower() == "older than":
+            olderCheck = 1
+            return "", ""
+        else:
+            return text, ""
     else:
         return "N/A", "N/A"
     
 
 def assignTypeOfDate(text):
     text = text.replace(' ', '')
+    if re.search('(oceanography)|(oceanographic)', text.lower()):
+        return "CANNOT UPLOAD"
     if re.search('(geology)|(archaeology)|(paleontology)', text.lower()):
         return text
     else:
@@ -182,6 +197,58 @@ def assignLatLong(text):
 def getPercentage(num1, num2):
     return round(num1/num2 * 100, 2)
 
+#this function will overwrite last_organized_output.txt
+#with the current file before anything is written out to it
+#it will then compare line by line to see if any lines have been
+#deleted or inserted. Useful for checking if anything is changing between
+#changes in this script
+def compareOldNewOutput(outputDir):
+    #first, write to old file
+    oldFile = open(outputDir+'last_organized_output.txt', 'r')
+    newFile = open(outputDir+'organized_output.txt', 'r')
+
+    oldLines = oldFile.readlines()
+    newLines = newFile.readlines()
+
+    deletedLines = []
+    addedLines = []
+
+    for line in oldLines:
+        if line not in newLines:
+            deletedLines.append(line)
+    for line in newLines:
+        if line not in oldLines:
+            addedLines.append(line)
+
+    print("\nDeleted Lines:")
+    print("".join(deletedLines))
+    print("\n\nAdded Lines:")
+    print("".join(addedLines))
+
+    oldFile.close()
+    newFile.close()
+
+#Before making any changes to the output file
+#write it out to last_organized_output.txt, which
+#will allow us to compare what has changed.
+def overwriteOldOutput(outputDir): 
+    oldFile = open(outputDir+'last_organized_output.txt', 'w')
+    newFile = open(outputDir+'organized_output.txt', 'r')
+
+    for line in newFile:
+        oldFile.write(line)
+
+    oldFile.close()
+    newFile.close()
+
+#This function is the template used for writing out errors to the output file
+#simply replace relevantDict and varName with the right things and it works correctly
+def writeToOutput(relevantDict, varName, fileCounter, file):
+    print("\nFiles With " + varName + " Missing: " + str(len(relevantDict)))
+    print("Percentage: " + str(getPercentage(len(relevantDict), fileCounter)) + "%")
+    for file in relevantDict:
+        print(file, "->", relevantDict[file])
+
 #--------------------
 #       NOTES
 #--------------------
@@ -228,8 +295,8 @@ fileCounter = 0
 badRead = 0
 
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/26000-26999/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/26000-26999/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
 directory = os.fsencode(sourceDir)
 
 #The necessary information that the database needs
@@ -255,6 +322,7 @@ ageDict = {}
 latLongDict = {}
 typeOfDateDict = {}
 siteIdentifieDict = {}
+cannotUploadList = {}
 
 for file in os.listdir(directory):
     filename = os.fsdecode(file)
@@ -262,6 +330,7 @@ for file in os.listdir(directory):
     #reset counters/flags here :)
     infoCounter = 0
     ageAssigned = 0
+    olderCheck = 0
     skipPop = 0
     dataList = [
     'location',
@@ -288,7 +357,7 @@ for file in os.listdir(directory):
                 if line == '\n' and badRead == 0:
                     #print("infoCounter increased.") #DEBUG
                     infoCounter += 1
-                    if infoCounter == 7:
+                    if infoCounter == 7 or not dataList:
                         break
                     if skipPop == 0:
                         dataList.pop(0)
@@ -303,6 +372,9 @@ for file in os.listdir(directory):
                 #print(repr(line)) #DEBUG
 
                 #Begin checking for specific variables in each line
+                #Double check how this is interacting with the infoCounter
+                #seriously I'm not entirely sure and I think that's
+                #the main problem at the moment.
                 if '±' in line or '>' in line:
                     if 'age' in dataList:
                         age, ageSigma = assignAge(line, dataList)
@@ -310,7 +382,7 @@ for file in os.listdir(directory):
                             ageDict[filename] = line
                         else:
                             skipPop = 1
-                        #    dataList.remove('age')
+                            dataList.remove('age')
                         continue
                 elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
@@ -318,7 +390,16 @@ for file in os.listdir(directory):
                         latLongDict[filename] = line
                     else:
                         skipPop = 1
-                    #    dataList.remove('latLong')
+                        dataList.remove('latLong')
+                    continue
+                elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
+                    if 'typeOfDate' in dataList:
+                        typeOfDate = assignTypeOfDate(line)
+                        if typeOfDate == "N/A":
+                            typeOfDateDict[filename] = line
+                        else:
+                            skipPop = 1
+                            dataList.remove('typeOfDate')
                     continue
 
 #NOTE AREA
@@ -342,6 +423,8 @@ for file in os.listdir(directory):
                     age, ageSigma = assignAge(line, dataList)
                     if age == "N/A":
                         ageDict[filename] = line
+                    elif olderCheck == 1:
+                        continue
                     else:
                         dataList.remove('age')
                 elif infoCounter == 5 and 'latLong' in dataList:
@@ -359,63 +442,81 @@ for file in os.listdir(directory):
                 continue
         #End Of File Read
 
-        #print("end of reading file " + str(filename)) #DEBUG
+    #print("end of reading file " + str(filename)) #DEBUG
 
-        if location == "":
-            locationDict[filename] = ""
-        if materialDated == "":
-            materialDatedDict[filename] = ""
-        if labName == "":
-            labNameDict[filename] = ""
-        if labNumber == "":
-            labNumberDict[filename] = ""
-        if age == "" or ageSigma == "":
-            ageDict[filename] = ""
-        if latitude == "" or longitude == "":
-            latLongDict[filename] = ""
-        if typeOfDate == "":
-            typeOfDateDict[filename] = ""
+    if location == "":
+        locationDict[filename] = ""
+    if materialDated == "":
+        materialDatedDict[filename] = ""
+    if labName == "":
+        labNameDict[filename] = ""
+    if labNumber == "":
+        labNumberDict[filename] = ""
+    if age == "" and ageSigma == "":
+        ageDict[filename] = ""
+    if latitude == "" or longitude == "":
+        latLongDict[filename] = ""
+    if typeOfDate == "":
+        typeOfDateDict[filename] = ""
+    if typeOfDate == "CANNOT UPLOAD":
+        cannotUploadList[filename] = ""
 
-        #Begin Writing To Text Files
-        orgOutputFile = open(outputDir+filename[:len(filename)-4]+"_organized.txt", 'w')
-        orgOutputFile.write("Location: " + location)
-        orgOutputFile.write("\n\nMaterial Dated: " + materialDated)
-        orgOutputFile.write("\n\nLab Name: " + labName)
-        orgOutputFile.write("\nLab Number: " + labNumber)
-        orgOutputFile.write("\n\nAge: " + str(age))
-        orgOutputFile.write("\nAge Sigma: " + str(ageSigma))
-        orgOutputFile.write("\n\nLatitude: " + latitude)
-        orgOutputFile.write("\nLongitude: " + longitude)
-        orgOutputFile.write("\n\nType Of Date: " + typeOfDate)
-        orgOutputFile.close()
-        readFile.close()
+    orgOutputFile = open(outputDir+filename[:len(filename)-4]+"_organized.txt", 'w')
+    #Begin Writing To Text Files
+    orgOutputFile.write("Location: " + location)
+    orgOutputFile.write("\n\nMaterial Dated: " + materialDated)
+    orgOutputFile.write("\n\nLab Name: " + labName)
+    orgOutputFile.write("\nLab Number: " + labNumber)
+    orgOutputFile.write("\n\nAge: " + str(age))
+    orgOutputFile.write("\nAge Sigma: " + str(ageSigma))
+    orgOutputFile.write("\n\nLatitude: " + latitude)
+    orgOutputFile.write("\nLongitude: " + longitude)
+    orgOutputFile.write("\n\nType Of Date: " + typeOfDate)
+    orgOutputFile.close()
+    readFile.close()
 
 #End Of Directory Reading
 
+#NOTE CHANGE THIS TO ITERATE THROUGH THE WHOLE LIST
+#THAT MEANS YOU NEED TO MAKE A LIST CONTAINING ALL THE DICTS
+#THIS WOULD MAKE ITERATING THROUGH ALL OF THESE OTHER THINGS
+#A LOT EASIER TOO. DO THAT ON MONDAY :)
 if len(ageDict) > len(latLongDict):
     largestFileError = len(ageDict)
 else:
     largestFileError = len(latLongDict)
+
 #print out the numbers/percentage of files that had errors in them
 print("Percentage of files with errors: " + str(round(largestFileError/fileCounter * 100, 2)) + "%")
 print("largestFileErrors = " + str(largestFileError))
 print("fileCounter = " + str(fileCounter))
+
+#print numbers for each list at the top so it's easy to see changes
+print("\nAge Errors: " + str(len(ageDict)))
+print("Lat/Long Errors: " + str(len(latLongDict)))
+print("Type Of Date Errors: " + str(len(typeOfDateDict)))
 
 #Begin printing out the content of each error list
 #be sure to update this whenever you add functionality
 #to each list
 #Print out the amount of files missing said data
 #and the percentage.
-print("\n***BEGIN ERROR LISTS***\n")
-print("Files With Age Missing: " + str(len(ageDict)))
-print("Percentage: " + str(getPercentage(len(ageDict), fileCounter)) + "%")
-for file in ageDict:
-    print(file, "->", ageDict[file])
-print("\nFiles With Lat/Long Missing: " + str(len(latLongDict)))
-print("Percentage: " + str(getPercentage(len(latLongDict), fileCounter)) + "%")
-for file in latLongDict:
-    print(file, "->", latLongDict[file])
-print("\nFiles With Type Of Date Missing: " + str(len(typeOfDateDict)))
-print("Percentage: " + str(getPercentage(len(typeOfDateDict), fileCounter)) + "%")
-for file in typeOfDateDict:
-    print(file, "->", typeOfDateDict[file])
+print("\n***BEGIN ERROR LISTS***")
+writeToOutput(ageDict, "Age", fileCounter, file)
+writeToOutput(latLongDict, "Lat/Long", fileCounter, file)
+writeToOutput(typeOfDateDict, "Type Of Date", fileCounter, file)
+
+print("\n\nTHESE FILES CANNOT BE UPLOADED DUE TO DATABASE CONFLICTS :(")
+for file in cannotUploadList:
+    print(file)
+
+#Now that the original output file has been overwritten
+#we can compare the last output run and the current one
+#to see what lines have been deleted/added
+compareOldNewOutput("/project/arcc-students/cbray3/radiocarbon_text/organized_output/")
+
+
+#FIX THIS, last_organized_output.txt IS GETTING NOTHING
+#WRITTEN OUT TO IT, NOT REALLY SURE WHY BUT THAT'S A PROBLEM
+#FOR MONDAY :)
+overwriteOldOutput("/project/arcc-students/cbray3/radiocarbon_text/organized_output/")
