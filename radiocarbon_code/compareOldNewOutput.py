@@ -1,0 +1,51 @@
+#this function will overwrite last_organized_output.txt
+#with the current file before anything is written out to it
+#it will then compare line by line to see if any lines have been
+#deleted or inserted. Useful for checking if anything is changing between
+#changes in this script
+def compareOldNewOutput(outputDir):
+    #first, write to old file
+    oldFile = open(outputDir+'last_organized_output.txt', 'r')
+    newFile = open(outputDir+'organized_output.txt', 'r')
+
+    oldLines = oldFile.readlines()
+    newLines = newFile.readlines()
+
+    deletedLines = []
+    addedLines = []
+
+    for line in oldLines:
+        if line not in newLines:
+            deletedLines.append(line)
+    for line in newLines:
+        if line not in oldLines:
+            addedLines.append(line)
+
+    print("\nDeleted Lines:")
+    print("".join(deletedLines))
+    print("\n\nAdded Lines:")
+    print("".join(addedLines))
+
+    oldFile.close()
+    newFile.close()
+
+#Before making any changes to the output file
+#write it out to last_organized_output.txt, which
+#will allow us to compare what has changed.
+def overwriteOldOutput(outputDir): 
+    oldFile = open(outputDir+'last_organized_output.txt', 'w')
+    newFile = open(outputDir+'organized_output.txt', 'r')
+
+    for line in newFile:
+        oldFile.write(line)
+
+    oldFile.close()
+    newFile.close()
+
+#Consider not reading the lines that simply reference the amount of files?
+#I'm really only looking for files that are added/deleted. 
+
+directory = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/"
+
+compareOldNewOutput(directory)
+overwriteOldOutput(directory)

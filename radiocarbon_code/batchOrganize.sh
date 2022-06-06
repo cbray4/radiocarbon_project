@@ -6,3 +6,4 @@
 #SBATCH --error=/project/arcc-students/cbray3/radiocarbon_text/organized_output/organized_errors.txt
 
 python /project/arcc-students/cbray3/radiocarbon_code/test_organize_text.py
+python /project/arcc-students/cbray3/radiocarbon_code/compareOldNewOutput.py
