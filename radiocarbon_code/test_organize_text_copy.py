@@ -181,7 +181,7 @@ def assignLatLong(text):
     #splits the lat/long down the middle where the X is
     #means that we don't have to do weird substring stuff
     if 'x' in newText and 'tx' not in newText:
-        latText, longText = newText.split('x',1) 
+        latText, longText = newText.split('x', 1) 
     elif 'unlocated' in newText:
         return "Unlocated", "Unlocated"
     else:
@@ -207,6 +207,10 @@ def writeToOutput(relevantDict, varName, fileCounter, file):
     for file in relevantDict:
         print(file, "->", relevantDict[file])
 
+def callRelevantFunction(relevantVar, text, dataList):
+    if relevantVar == 'location':
+        return
+
 #--------------------
 #       NOTES
 #--------------------
@@ -223,7 +227,7 @@ def writeToOutput(relevantDict, varName, fileCounter, file):
 #--------------------
 #Used to keep track of which piece of info we are on
 #convenient chart below for reference
-infoCounter = 0
+
 #   0 : location
 #   1 : materialDated
 #   2 : labName
@@ -286,7 +290,6 @@ for file in os.listdir(directory):
     filename = os.fsdecode(file)
 
     #reset counters/flags here :)
-    infoCounter = 0
     ageAssigned = 0
     olderCheck = 0
     skipPop = 0
@@ -313,9 +316,7 @@ for file in os.listdir(directory):
         for line in linesInFile:
             if checkBadRead(line) == 0:
                 if line == '\n' and badRead == 0:
-                    #print("infoCounter increased.") #DEBUG
-                    infoCounter += 1
-                    if infoCounter == 7 or not dataList:
+                    if not dataList:
                         break
                     if skipPop == 0:
                         dataList.pop(0)
@@ -333,8 +334,8 @@ for file in os.listdir(directory):
                 #Double check how this is interacting with the infoCounter
                 #seriously I'm not entirely sure and I think that's
                 #the main problem at the moment.
-                if '±' in line or '>' in line:
-                    if 'age' in dataList:
+                if 'age' in dataList:
+                    if '±' in line or '>' in line:
                         age, ageSigma = assignAge(line, dataList)
                         if age == "N/A":
                             ageDict[filename] = line
@@ -342,7 +343,13 @@ for file in os.listdir(directory):
                             skipPop = 1
                             dataList.remove('age')
                         continue
-                elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
+                elif 'labNumber' in dataList:
+                    if re.search('[0-9a-zA-Z\-]+-(\d)+', line):
+                        labNumber = assignLabNum(line)
+                        dataList.remove('labNumber')
+                        skipPop = 1
+                        continue
+                elif 'latLong' in dataList and re.search('(lat)|(long)', line.lower()):
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
@@ -350,15 +357,15 @@ for file in os.listdir(directory):
                         skipPop = 1
                         dataList.remove('latLong')
                     continue
-                elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
-                    if 'typeOfDate' in dataList:
+                elif 'typeOfDate' in dataList:
+                    if re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
                         typeOfDate = assignTypeOfDate(line)
                         if typeOfDate == "N/A":
                             typeOfDateDict[filename] = line
                         else:
                             skipPop = 1
                             dataList.remove('typeOfDate')
-                    continue
+                        continue
 
 #NOTE AREA
 #so one problem I've run into is that if the order is messed up at all
@@ -367,15 +374,15 @@ for file in os.listdir(directory):
 #(Age/LatLong) and have specific checks for their unique symbols
 #Once they've been put in set a flag or increase infoCounter,
 #something along those lines.
-                if infoCounter == 0 and 'location' in dataList:
+                if 'location' in dataList:
                     location += assignLocation(line)
-                elif infoCounter == 1 and 'materialDated' in dataList:
+                elif 'materialDated' in dataList:
                     materialDated = assignMatDated(line)
-                elif infoCounter == 2 and 'labName' in dataList:
+                elif 'labName' in dataList:
                     labName = assignLabName(line, dataList)
-                elif infoCounter == 3 and 'labNumber' in dataList:
+                elif 'labNumber' in dataList:
                     labNumber = assignLabNum(line)
-                elif infoCounter == 4 and 'age' in dataList:
+                elif 'age' in dataList:
                     if ageAssigned == 1:
                         continue
                     age, ageSigma = assignAge(line, dataList)
@@ -385,13 +392,12 @@ for file in os.listdir(directory):
                         continue
                     else:
                         dataList.remove('age')
-                elif infoCounter == 5 and 'latLong' in dataList:
+                elif 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
-                    else:
-                        dataList.remove('latLong')
-                elif infoCounter == 6 and 'typeOfDate' in dataList:
+                    dataList.remove('latLong')
+                elif 'typeOfDate' in dataList:
                     typeOfDate = assignTypeOfDate(line)
                     if typeOfDate == "N/A":
                         typeOfDateDict[filename] = line

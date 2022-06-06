@@ -9,8 +9,8 @@ import os
 import re
 
 #put the directories into strings so I can change them later if need be
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_card_copies/ocr/7-599/" 	#where the pdfs are stored
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/" 	#where the output should go
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_card_copies/ocr/26000-26999/" 	#where the pdfs are stored
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/26000-26999/" 	#where the output should go
 
 #get the directory for the pdfs as a var the os library can work with
 directory = os.fsencode(sourceDir)
