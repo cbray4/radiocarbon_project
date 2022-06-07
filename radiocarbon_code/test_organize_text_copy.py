@@ -334,38 +334,39 @@ for file in os.listdir(directory):
                 #Double check how this is interacting with the infoCounter
                 #seriously I'm not entirely sure and I think that's
                 #the main problem at the moment.
-                if 'age' in dataList:
-                    if '±' in line or '>' in line:
-                        age, ageSigma = assignAge(line, dataList)
-                        if age == "N/A":
-                            ageDict[filename] = line
-                        else:
-                            skipPop = 1
-                            dataList.remove('age')
-                        continue
-                elif 'labNumber' in dataList:
-                    if re.search('[0-9a-zA-Z\-]+-(\d)+', line):
-                        labNumber = assignLabNum(line)
-                        dataList.remove('labNumber')
+                if '±' in line or '>' in line:
+                    age, ageSigma = assignAge(line, dataList)
+                    if age == "N/A":
+                        ageDict[filename] = line
+                    else:
                         skipPop = 1
-                        continue
-                elif 'latLong' in dataList and re.search('(lat)|(long)', line.lower()):
+                        if 'age' in dataList:
+                            dataList.remove('age')
+                    continue
+                elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
+                    labNumber = assignLabNum(line)
+                    if 'labNumber' in dataList:
+                        dataList.remove('labNumber')
+                    skipPop = 1
+                    continue
+                elif re.search('(lat)|(long)', line.lower()):
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
                     else:
                         skipPop = 1
-                        dataList.remove('latLong')
+                        if 'latLong' in dataList:
+                            dataList.remove('latLong')
                     continue
-                elif 'typeOfDate' in dataList:
-                    if re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
-                        typeOfDate = assignTypeOfDate(line)
-                        if typeOfDate == "N/A":
-                            typeOfDateDict[filename] = line
-                        else:
-                            skipPop = 1
+                elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
+                    typeOfDate = assignTypeOfDate(line)
+                    if typeOfDate == "N/A":
+                        typeOfDateDict[filename] = line
+                    else:
+                        skipPop = 1
+                        if 'typeOfDate' in dataList:
                             dataList.remove('typeOfDate')
-                        continue
+                    continue
 
 #NOTE AREA
 #so one problem I've run into is that if the order is messed up at all
