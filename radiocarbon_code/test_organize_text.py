@@ -95,7 +95,7 @@ def assignTypeOfDate(text):
     if re.search('(oceanography)|(oceanographic)|(miscellaneous)', text.lower()):
         return "CANNOT UPLOAD"
     if re.search('(geology)|(archaeology)|(paleontology)', text.lower()):
-        return text
+        return re.search('(geology)|(archaeology)|(paleontology)', text.lower()).group()
     else:
         return "N/A"
 
@@ -158,10 +158,13 @@ def latLongFunc(text, isLong):
                         num3 = re.search('0', '0')
                 else:
                     modText = re.search(pattern, text[num3.end():])
-                    if modText.group() == negativeDir:
-                        modifier = -1
-                    else:
+                    if modText == None:
                         modifier = 1
+                    else:
+                        if modText.group() == negativeDir:
+                            modifier = -1
+                        else:
+                            modifier = 1
             else:
                 num3 = re.search('0', '0')
                 modifier = 1
@@ -253,8 +256,8 @@ fileCounter = 0
 badRead = 0
 
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/41000-41999/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/41000-41999/"
 directory = os.fsencode(sourceDir)
 
 #The necessary information that the database needs
@@ -340,8 +343,15 @@ for file in os.listdir(directory):
                             ageDict[filename] = line
                         else:
                             skipPop = 1
-                            dataList.remove('age')
+                            if infoCounter != 4:
+                                dataList.remove('age')
                         continue
+                elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
+                    labNumber = assignLabNum(line)
+                    if 'labNumber' in dataList:
+                        dataList.remove('labNumber')
+                    skipPop = 1
+                    continue
                 elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
@@ -358,6 +368,8 @@ for file in os.listdir(directory):
                         else:
                             skipPop = 1
                             dataList.remove('typeOfDate')
+                    continue
+                elif re.search('B *. *C *.', line):
                     continue
 
 #NOTE AREA
