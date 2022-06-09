@@ -16,7 +16,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1iejrmtAI:;•%«■^\'!f*/#\- ]*$', text) and text != "\n":
+    if re.match('^[1iejrmtATI:;•%«■^’\'!f*/#\- ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -352,7 +352,7 @@ for file in os.listdir(directory):
                         dataList.remove('labNumber')
                     skipPop = 1
                     continue
-                elif re.search('(lat)|(long)', line.lower()) and 'latLong' in dataList:
+                elif re.search('(lat[^i])|(long)', line.lower()) and 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
