@@ -16,7 +16,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1iejrmtAI:;•%«■^\'!f*/#\- ]*$', text) and text != "\n":
+    if re.match('^[1iejrmtATI:;•%«■^’\'!f*/#\- ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -95,7 +95,7 @@ def assignTypeOfDate(text):
     if re.search('(oceanography)|(oceanographic)|(miscellaneous)', text.lower()):
         return "CANNOT UPLOAD"
     if re.search('(geology)|(archaeology)|(paleontology)', text.lower()):
-        return text
+        return re.search('(geology)|(archaeology)|(paleontology)', text.lower()).group()
     else:
         return "N/A"
 
@@ -158,10 +158,13 @@ def latLongFunc(text, isLong):
                         num3 = re.search('0', '0')
                 else:
                     modText = re.search(pattern, text[num3.end():])
-                    if modText.group() == negativeDir:
-                        modifier = -1
-                    else:
+                    if modText == None:
                         modifier = 1
+                    else:
+                        if modText.group() == negativeDir:
+                            modifier = -1
+                        else:
+                            modifier = 1
             else:
                 num3 = re.search('0', '0')
                 modifier = 1
@@ -181,7 +184,7 @@ def assignLatLong(text):
     #splits the lat/long down the middle where the X is
     #means that we don't have to do weird substring stuff
     if 'x' in newText and 'tx' not in newText:
-        latText, longText = newText.split('x', 1) 
+        latText, longText = newText.split('x',1) 
     elif 'unlocated' in newText:
         return "Unlocated", "Unlocated"
     else:
@@ -207,10 +210,6 @@ def writeToOutput(relevantDict, varName, fileCounter, file):
     for file in relevantDict:
         print(file, "->", relevantDict[file])
 
-def callRelevantFunction(relevantVar, text, dataList):
-    if relevantVar == 'location':
-        return
-
 #--------------------
 #       NOTES
 #--------------------
@@ -227,7 +226,7 @@ def callRelevantFunction(relevantVar, text, dataList):
 #--------------------
 #Used to keep track of which piece of info we are on
 #convenient chart below for reference
-
+infoCounter = 0
 #   0 : location
 #   1 : materialDated
 #   2 : labName
@@ -257,8 +256,8 @@ fileCounter = 0
 badRead = 0
 
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/41000-41999/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/41000-41999/"
 directory = os.fsencode(sourceDir)
 
 #The necessary information that the database needs
@@ -290,6 +289,7 @@ for file in os.listdir(directory):
     filename = os.fsdecode(file)
 
     #reset counters/flags here :)
+    infoCounter = 0
     ageAssigned = 0
     olderCheck = 0
     skipPop = 0
@@ -316,7 +316,9 @@ for file in os.listdir(directory):
         for line in linesInFile:
             if checkBadRead(line) == 0:
                 if line == '\n' and badRead == 0:
-                    if not dataList:
+                    #print("infoCounter increased.") #DEBUG
+                    infoCounter += 1
+                    if infoCounter == 7 or not dataList:
                         break
                     if skipPop == 0:
                         dataList.pop(0)
@@ -335,37 +337,39 @@ for file in os.listdir(directory):
                 #seriously I'm not entirely sure and I think that's
                 #the main problem at the moment.
                 if '±' in line or '>' in line:
-                    age, ageSigma = assignAge(line, dataList)
-                    if age == "N/A":
-                        ageDict[filename] = line
-                    else:
-                        skipPop = 1
-                        if 'age' in dataList:
-                            dataList.remove('age')
-                    continue
+                    if 'age' in dataList:
+                        age, ageSigma = assignAge(line, dataList)
+                        if age == "N/A":
+                            ageDict[filename] = line
+                        else:
+                            skipPop = 1
+                            if infoCounter != 4:
+                                dataList.remove('age')
+                        continue
                 elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
                     labNumber = assignLabNum(line)
                     if 'labNumber' in dataList:
                         dataList.remove('labNumber')
                     skipPop = 1
                     continue
-                elif re.search('(lat)|(long)', line.lower()):
+                elif re.search('(lat[^i])|(long)', line.lower()) and 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
                     else:
                         skipPop = 1
-                        if 'latLong' in dataList:
-                            dataList.remove('latLong')
+                        dataList.remove('latLong')
                     continue
                 elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
-                    typeOfDate = assignTypeOfDate(line)
-                    if typeOfDate == "N/A":
-                        typeOfDateDict[filename] = line
-                    else:
-                        skipPop = 1
-                        if 'typeOfDate' in dataList:
+                    if 'typeOfDate' in dataList:
+                        typeOfDate = assignTypeOfDate(line)
+                        if typeOfDate == "N/A":
+                            typeOfDateDict[filename] = line
+                        else:
+                            skipPop = 1
                             dataList.remove('typeOfDate')
+                    continue
+                elif re.search('B *. *C *.', line):
                     continue
 
 #NOTE AREA
@@ -375,15 +379,15 @@ for file in os.listdir(directory):
 #(Age/LatLong) and have specific checks for their unique symbols
 #Once they've been put in set a flag or increase infoCounter,
 #something along those lines.
-                if 'location' in dataList:
+                if infoCounter == 0 and 'location' in dataList:
                     location += assignLocation(line)
-                elif 'materialDated' in dataList:
+                elif infoCounter == 1 and 'materialDated' in dataList:
                     materialDated = assignMatDated(line)
-                elif 'labName' in dataList:
+                elif infoCounter == 2 and 'labName' in dataList:
                     labName = assignLabName(line, dataList)
-                elif 'labNumber' in dataList:
+                elif infoCounter == 3 and 'labNumber' in dataList:
                     labNumber = assignLabNum(line)
-                elif 'age' in dataList:
+                elif infoCounter == 4 and 'age' in dataList:
                     if ageAssigned == 1:
                         continue
                     age, ageSigma = assignAge(line, dataList)
@@ -393,12 +397,13 @@ for file in os.listdir(directory):
                         continue
                     else:
                         dataList.remove('age')
-                elif 'latLong' in dataList:
+                elif infoCounter == 5 and 'latLong' in dataList:
                     latitude, longitude = assignLatLong(line)
                     if latitude == "N/A" or longitude == "N/A":
                         latLongDict[filename] = line
-                    dataList.remove('latLong')
-                elif 'typeOfDate' in dataList:
+                    else:
+                        dataList.remove('latLong')
+                elif infoCounter == 6 and 'typeOfDate' in dataList:
                     typeOfDate = assignTypeOfDate(line)
                     if typeOfDate == "N/A":
                         typeOfDateDict[filename] = line
