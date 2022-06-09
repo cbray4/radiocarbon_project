@@ -16,7 +16,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1iejrmtATI:;•%«■^’\'!f*/#\- ]*$', text) and text != "\n":
+    if re.match('^[1iejrmtATI:;•%«■^“’\'!f*/#_„\- ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
