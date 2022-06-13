@@ -4,6 +4,7 @@ import re
 #this'll let me iterate through all the text files in the raw_output directory
 import os
 
+from itertools import chain
 #global variable to make sure that the age only reads in the first line
 ageAssigned = 0
 #used in assignAge() to tell it to take the next line
@@ -16,7 +17,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1iejrmtATI:;•%«■^’\'!f*/#\- ]*$', text) and text != "\n":
+    if re.match('^[1igejromtnAQTI.:;•%«»>%*■^“’‘\'!f*/#_„,\-— ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -74,7 +75,7 @@ def assignAge(text, dataList):
     if '±' in text:
         ageAssigned = 1
         return text.split('±', 1)
-    elif '>' in text or '^' in text:
+    elif '>' in text or '^' in text or '<' in text:
         ageAssigned = 1
         return text, "0"
     elif text.lower() == "modern":
@@ -183,10 +184,13 @@ def assignLatLong(text):
     #converting to lowercase makes if statements much easier to read
     #by allowing us to avoid checking for uppercase
     newText = str(text).lower()
+    newText = newText.replace(' ', '')
     #splits the lat/long down the middle where the X is
     #means that we don't have to do weird substring stuff
     if 'x' in newText and 'tx' not in newText:
         latText, longText = newText.split('x',1) 
+    elif 'lon' in newText:
+        latText, longText = newText.split('lon',1)
     elif 'unlocated' in newText:
         return "Unlocated", "Unlocated"
     else:
@@ -211,6 +215,10 @@ def writeToOutput(relevantDict, varName, fileCounter, file):
     print("Percentage: " + str(getPercentage(len(relevantDict), fileCounter)) + "%")
     for file in relevantDict:
         print(file, "->", relevantDict[file])
+
+def numOfUniqueKeys(listOfDicts):
+    keys = list(set(chain.from_iterable(sub.keys() for sub in listOfDicts)))
+    return keys
 
 #--------------------
 #       NOTES
@@ -339,11 +347,14 @@ for subDir, dirs, files in os.walk(sourceDir):
 
                         #print(repr(line)) #DEBUG
 
+                        if "A.D." in line:
+                            continue
+
                         #Begin checking for specific variables in each line
                         #Double check how this is interacting with the infoCounter
                         #seriously I'm not entirely sure and I think that's
                         #the main problem at the moment.
-                        if '±' in line or '>' in line:
+                        if '±' in line or '>' in line or '<' in line:
                             if 'age' in dataList:
                                 age, ageSigma = assignAge(line, dataList)
                                 if age == "N/A":
@@ -360,7 +371,14 @@ for subDir, dirs, files in os.walk(sourceDir):
                             skipPop = 1
                             continue
                         elif re.search('(lat[^i])|(long)', line.lower()) and 'latLong' in dataList:
-                            latitude, longitude = assignLatLong(line)
+                            trimLine = line.replace(' ', '')
+                            if 'long' not in trimLine.lower():
+                                latitude = latLongFunc(trimLine, 0)
+                                continue
+                            elif 'lat' not in trimLine.lower():
+                                longitude = latLongFunc(trimLine, 1)
+                            else:
+                                latitude, longitude = assignLatLong(trimLine)
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
                             else:
@@ -406,6 +424,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 dataList.remove('age')
                         elif infoCounter == 5 and 'latLong' in dataList:
                             latitude, longitude = assignLatLong(line)
+                            #If Lat and Long are separated onto two different lines
+                            #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
                             else:
@@ -462,13 +482,27 @@ for subDir, dirs, files in os.walk(sourceDir):
 #THAT MEANS YOU NEED TO MAKE A LIST CONTAINING ALL THE DICTS
 #THIS WOULD MAKE ITERATING THROUGH ALL OF THESE OTHER THINGS
 #A LOT EASIER TOO. DO THAT ON MONDAY :)
+
+listOfDicts = [
+    locationDict,
+    materialDatedDict,
+    labNameDict,
+    labNumberDict,
+    ageDict,
+    latLongDict,
+    typeOfDateDict
+]
+
 if len(ageDict) > len(latLongDict):
     largestFileError = len(ageDict)
 else:
     largestFileError = len(latLongDict)
 
+uniqueCardErrors = numOfUniqueKeys(listOfDicts)
+
 #print out the numbers/percentage of files that had errors in them
-print("Percentage of files with errors: " + str(round(largestFileError/fileCounter * 100, 2)) + "%")
+print("Percentage of files with errors: " + str(round(len(uniqueCardErrors)/fileCounter * 100, 2)) + "%")
+print("Number Of Cards With Errors = " + str(len(uniqueCardErrors)))
 print("largestFileErrors = " + str(largestFileError))
 print("fileCounter = " + str(fileCounter))
 
