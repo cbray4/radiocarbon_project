@@ -4,6 +4,8 @@ import re
 #this'll let me iterate through all the text files in the raw_output directory
 import os
 
+from itertools import chain
+
 #global variable to make sure that the age only reads in the first line
 ageAssigned = 0
 #used in assignAge() to tell it to take the next line
@@ -210,6 +212,10 @@ def writeToOutput(relevantDict, varName, fileCounter, file):
     for file in relevantDict:
         print(file, "->", relevantDict[file])
 
+def numOfUniqueKeys(listOfDicts):
+    keys = list(set(chain.from_iterable(sub.keys() for sub in listOfDicts)))
+    return keys
+
 #--------------------
 #       NOTES
 #--------------------
@@ -256,8 +262,8 @@ fileCounter = 0
 badRead = 0
 
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/41000-41999/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/41000-41999/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
 directory = os.fsencode(sourceDir)
 
 #The necessary information that the database needs
@@ -449,6 +455,16 @@ for file in os.listdir(directory):
 
 #End Of Directory Reading
 
+listOfDicts = [
+    locationDict,
+    materialDatedDict,
+    labNameDict,
+    labNumberDict,
+    ageDict,
+    latLongDict,
+    typeOfDateDict
+]
+
 #NOTE CHANGE THIS TO ITERATE THROUGH THE WHOLE LIST
 #THAT MEANS YOU NEED TO MAKE A LIST CONTAINING ALL THE DICTS
 #THIS WOULD MAKE ITERATING THROUGH ALL OF THESE OTHER THINGS
@@ -458,8 +474,11 @@ if len(ageDict) > len(latLongDict):
 else:
     largestFileError = len(latLongDict)
 
+uniqueCardErrors = numOfUniqueKeys(listOfDicts)
+
 #print out the numbers/percentage of files that had errors in them
-print("Percentage of files with errors: " + str(round(largestFileError/fileCounter * 100, 2)) + "%")
+print("Percentage of files with errors: " + str(round(len(uniqueCardErrors)/fileCounter * 100, 2)) + "%")
+print("Number Of Cards With Errors = " + str(len(uniqueCardErrors)))
 print("largestFileErrors = " + str(largestFileError))
 print("fileCounter = " + str(fileCounter))
 
