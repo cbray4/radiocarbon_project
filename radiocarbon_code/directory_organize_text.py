@@ -262,8 +262,8 @@ fileCounter = 0
 badRead = 0
 
 #setup directory variables
-sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/7-599/"
-outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/7-599/"
+sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/26000-26999/"
+outputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/26000-26999/"
 directory = os.fsencode(sourceDir)
 
 #The necessary information that the database needs
