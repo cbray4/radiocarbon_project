@@ -17,7 +17,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1igejromtnAQTI.:;•%«»>%*■^“’‘\'!f*/#_„,\-— ]*$', text) and text != "\n":
+    if re.match('^[1ligejromtnAMVPQTI.:;•%«»>%*■^“’‘\'!f*/#_„,\-— ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -62,7 +62,9 @@ def assignAge(text, dataList):
     #if a match is found and labNumber hasn't already
     #been assigned something, get that part of the string out
     #and assign labNumber
-    possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
+    checkText = text.replace(' ', '')
+
+    possibleLabNum = re.search('[0-9a-zA-Z\-()]+-(\d)+', checkText)
     if possibleLabNum != None:
         if 'labNumber' in dataList:
             dataList.remove('labNumber')
@@ -93,10 +95,12 @@ def assignAge(text, dataList):
 
 def assignTypeOfDate(text):
     text = text.replace(' ', '')
-    if re.search('(oceanography)|(oceanographic)|(miscellaneous)', text.lower()):
+    if re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()):
+        return re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()).group()
+    if re.search('(oceanography)|(oceanographic)|(miscellaneous)|(gaspropor)|(geo[-]?che)|(geo[-]?phy)', text.lower()):
         return "CANNOT UPLOAD"
-    if re.search('(geology)|(archaeology)|(paleontology)', text.lower()):
-        return re.search('(geology)|(archaeology)|(paleontology)', text.lower()).group()
+    if "pollen dated" in text.lower() or "pollen-dated" in text.lower() or "pollen" in text.lower() or "dated" in text.lower():
+        return " "
     else:
         return "N/A"
 
@@ -192,6 +196,8 @@ def assignLatLong(text):
     elif 'lon' in newText:
         latText, longText = newText.split('lon',1)
     elif 'unlocated' in newText:
+        return "Unlocated", "Unlocated"
+    elif 'nolocation' in newText:
         return "Unlocated", "Unlocated"
     else:
         return "N/A", "N/A"
@@ -347,7 +353,7 @@ for subDir, dirs, files in os.walk(sourceDir):
 
                         #print(repr(line)) #DEBUG
 
-                        if "A.D." in line:
+                        if re.search('A *. *D *.', line):
                             continue
 
                         #Begin checking for specific variables in each line
@@ -394,7 +400,14 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     skipPop = 1
                                     dataList.remove('typeOfDate')
                             continue
+                        elif 'lab' in line.lower():
+                            labName = assignLabName(line, dataList)
+                            skipPop = 1
+                            continue
                         elif re.search('B *. *C *.', line):
+                            continue
+                        elif 'corrected' in line.lower():
+                            infoCounter -= 1
                             continue
 
         #NOTE AREA
