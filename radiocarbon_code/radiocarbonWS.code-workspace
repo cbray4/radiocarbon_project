@@ -1,11 +1,13 @@
 {
 	"folders": [
 		{
-			"path": "../radiocarbon_text"
+			"path": "../radiocarbon_code"
 		},
 		{
-			"path": "."
+			"path": "../radiocarbon_text"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
 }

@@ -17,7 +17,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1ligejromtnAMVPQTI.:;•%«»>%*■^“’‘\'!f*/#_„,\-— ]*$', text) and text != "\n":
+    if re.match('^[1ligejromtnAMOVPQTI.:;•%«»>%*■^“’‘\'!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -77,18 +77,31 @@ def assignAge(text, dataList):
     if '±' in text:
         ageAssigned = 1
         return text.split('±', 1)
+    elif '+' in text:
+        ageAssigned = 1
+        return text.split('+', 1)
+    elif 'i' in text:
+        if re.search('\d', text):
+            ageAssigned = 1
+            return text.split('i', 1)
+        else:
+            return "N/A", "N/A"
     elif '>' in text or '^' in text or '<' in text:
         ageAssigned = 1
         return text, "0"
     elif text.lower() == "modern":
         ageAssigned = 1
         return text, "0"
-    elif re.search("older than", text.lower()):
+    elif re.search("(older than)|(at least)", text.lower()):
         if text.lower() == "older than":
             olderCheck = 1
             return "", ""
         else:
             return text, ""
+    elif 'C14' in text or 'C13' in text:
+        return "C14/C13, Fix Later", "DO NOT UPLOAD!"
+    elif "yrs" in text or "yr" in text:
+        return text, ""
     else:
         return "N/A", "N/A"
     
@@ -97,7 +110,7 @@ def assignTypeOfDate(text):
     text = text.replace(' ', '')
     if re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()):
         return re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()).group()
-    if re.search('(oceanography)|(oceanographic)|(miscellaneous)|(gaspropor)|(geo[-]?che)|(geo[-]?phy)', text.lower()):
+    if re.search('(oceanography)|(oceanographic)|(miscellaneous)|(gaspropor)|(geo[-]?che)|(geo[-]?phy)|(ethno)|(ground)|(atmo)', text.lower()):
         return "CANNOT UPLOAD"
     if "pollen dated" in text.lower() or "pollen-dated" in text.lower() or "pollen" in text.lower() or "dated" in text.lower():
         return " "
@@ -400,7 +413,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     skipPop = 1
                                     dataList.remove('typeOfDate')
                             continue
-                        elif 'lab' in line.lower():
+                        elif 'lab' in line.lower() or 'univ' in line.lower():
                             labName = assignLabName(line, dataList)
                             skipPop = 1
                             continue
@@ -433,16 +446,18 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 ageDict[file] = line
                             elif olderCheck == 1:
                                 continue
-                            else:
-                                dataList.remove('age')
+                            elif age == "C14":
+                                cannotUploadList[file] = "C14"
+                            #else:
+                                #dataList.remove('age')
                         elif infoCounter == 5 and 'latLong' in dataList:
                             latitude, longitude = assignLatLong(line)
                             #If Lat and Long are separated onto two different lines
                             #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
-                            else:
-                                dataList.remove('latLong')
+                            #else:
+                                #dataList.remove('latLong')
                         elif infoCounter == 6 and 'typeOfDate' in dataList:
                             typeOfDate = assignTypeOfDate(line)
                             if typeOfDate == "N/A":
@@ -471,7 +486,9 @@ for subDir, dirs, files in os.walk(sourceDir):
             if latitude == "Unlocated":
                 cannotUploadList[file] = "Unlocated"
             if typeOfDate == "CANNOT UPLOAD":
-                cannotUploadList[file] = ""
+                cannotUploadList[file] = "Unsupported Date Type"
+
+            #Call function to double check variables to make sure they aren't incorrect
 
             orgOutputFile = open(outputDir+file[:len(file)-4]+"_organized.txt", 'w')
             #Begin Writing To Text Files
@@ -536,4 +553,4 @@ writeToOutput(typeOfDateDict, "Type Of Date", fileCounter, file)
 
 print("\n\n" + str(len(cannotUploadList))+" FILES CANNOT BE UPLOADED DUE TO DATABASE CONFLICTS :(")
 for file in cannotUploadList:
-    print(file)
+    print(file, " -> ", cannotUploadList[file])
