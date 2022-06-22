@@ -446,8 +446,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 ageDict[file] = line
                             elif olderCheck == 1:
                                 continue
-                            elif age == "C14":
-                                cannotUploadList[file] = "C14"
+                            elif "C14" in age:
+                                cannotUploadList[file] = "C14/C13 Format, Fix Later"
                             #else:
                                 #dataList.remove('age')
                         elif infoCounter == 5 and 'latLong' in dataList:
