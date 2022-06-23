@@ -111,7 +111,7 @@ def assignTypeOfDate(text):
     if re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()):
         return re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()).group()
     if re.search('(oceanography)|(oceanographic)|(miscellaneous)|(gaspropor)|(geo[-]?che)|(geo[-]?phy)|(ethno)|(ground)|(atmo)', text.lower()):
-        return "CANNOT UPLOAD"
+        return "CANNOT UPLOAD " + text
     if "pollen dated" in text.lower() or "pollen-dated" in text.lower() or "pollen" in text.lower() or "dated" in text.lower():
         return " "
     else:
@@ -417,7 +417,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             labName = assignLabName(line, dataList)
                             skipPop = 1
                             continue
-                        elif re.search('B *. *C *.', line):
+                        elif re.search('B *. *C *.', line) or re.search('liquid scin', line.lower()):
                             continue
                         elif 'corrected' in line.lower():
                             infoCounter -= 1
@@ -485,8 +485,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                 typeOfDateDict[file] = ""
             if latitude == "Unlocated":
                 cannotUploadList[file] = "Unlocated"
-            if typeOfDate == "CANNOT UPLOAD":
-                cannotUploadList[file] = "Unsupported Date Type"
+            if "CANNOT UPLOAD" in typeOfDate:
+                cannotUploadList[file] = "Unsupported Date Type, " + typeOfDate
 
             #Call function to double check variables to make sure they aren't incorrect
 
