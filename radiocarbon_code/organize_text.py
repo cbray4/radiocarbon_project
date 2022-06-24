@@ -457,7 +457,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
-                            elif latitude == "Number Problem" or longitude == "Number Problem":
+                            if latitude == "Number Problem" or longitude == "Number Problem":
                                 latLongProblemDict[file] = line
                             #else:
                                 #dataList.remove('latLong')
