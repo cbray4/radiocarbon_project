@@ -17,7 +17,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1ligejromtnAMOVPQTI.:;•%«»>%*■^“’‘\'!f*/#_„,\-—( ]*$', text) and text != "\n":
+    if re.match('^[1ligejromtnAMOVPQTI.:;•%«»>%*■♦^“’‘\'!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -89,7 +89,7 @@ def assignAge(text, dataList):
     elif '>' in text or '^' in text or '<' in text:
         ageAssigned = 1
         return text, "0"
-    elif text.lower() == "modern":
+    elif text.lower() == "modern" or 'contemporary' in text.lower():
         ageAssigned = 1
         return text, "0"
     elif re.search("(older than)|(at least)", text.lower()):
@@ -157,7 +157,7 @@ def latLongFunc(text, isLong):
     if num1 != None:
         num2 = re.search('\d+|'+pattern, text[num1.end():])
         if num2 == None:
-            return "N/A"
+            return "Number Problem"
         if num2.group() == positiveDir:
             modifier = 1
             num2 = re.search('0', '0')
@@ -190,7 +190,7 @@ def latLongFunc(text, isLong):
                 modifier = 1
         result = str((int(num1.group()) + int(num2.group())/60.0 + int(num3.group())/3600.0) * modifier)
     else:
-        result = "N/A"
+        result = "Number Problem"
     return result
 
 def assignLatLong(text):
@@ -208,7 +208,7 @@ def assignLatLong(text):
         latText, longText = newText.split('x',1) 
     elif 'lon' in newText:
         latText, longText = newText.split('lon',1)
-    elif 'unlocated' in newText:
+    elif 'unlocated' in newText or 'nolat' in newText:
         return "Unlocated", "Unlocated"
     elif 'nolocation' in newText:
         return "Unlocated", "Unlocated"
@@ -311,6 +311,7 @@ ageDict = {}
 latLongDict = {}
 typeOfDateDict = {}
 siteIdentifieDict = {}
+latLongProblemDict = {}
 cannotUploadList = {}
 
 skipFirst = 0
@@ -456,6 +457,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                             #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
+                            elif latitude == "Number Problem" or longitude == "Number Problem":
+                                latLongProblemDict[file] = line
                             #else:
                                 #dataList.remove('latLong')
                         elif infoCounter == 6 and 'typeOfDate' in dataList:
@@ -554,3 +557,7 @@ writeToOutput(typeOfDateDict, "Type Of Date", fileCounter, file)
 print("\n\n" + str(len(cannotUploadList))+" FILES CANNOT BE UPLOADED DUE TO DATABASE CONFLICTS :(")
 for file in cannotUploadList:
     print(file, " -> ", cannotUploadList[file])
+
+print("\n\n" + str(len(latLongProblemDict)) + " FILES HAVE PROBLEMS WITH LAT/LONG NUMBERS :(")
+for file in latLongProblemDict:
+    print(file, " -> ", latLongProblemDict[file])
