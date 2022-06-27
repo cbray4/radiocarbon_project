@@ -17,7 +17,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1ligejromtnAMOVPQTI.:;•%«»>%*■♦^“’‘\'!f*/#_„,\-—( ]*$', text) and text != "\n":
+    if re.match('^[19sligejromtnkAHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -157,7 +157,7 @@ def latLongFunc(text, isLong):
     if num1 != None:
         num2 = re.search('\d+|'+pattern, text[num1.end():])
         if num2 == None:
-            return num1.group()
+            return "numprob"
         if num2.group() == positiveDir:
             modifier = 1
             num2 = re.search('0', '0')
@@ -190,7 +190,7 @@ def latLongFunc(text, isLong):
                 modifier = 1
         result = str((int(num1.group()) + int(num2.group())/60.0 + int(num3.group())/3600.0) * modifier)
     else:
-        result = "Number Problem"
+        result = "numprob"
     return result
 
 def assignLatLong(text):
@@ -210,7 +210,7 @@ def assignLatLong(text):
         latText, longText = newText.split('lon',1)
     elif 'unlocated' in newText or 'nolat' in newText:
         return "Unlocated", "Unlocated"
-    elif 'nolocation' in newText:
+    elif 'nolocation' in newText or 'notgiven' in newText:
         return "Unlocated", "Unlocated"
     else:
         return "N/A", "N/A"
@@ -219,10 +219,6 @@ def assignLatLong(text):
     longitude = latLongFunc(longText, 1)
     
     return latitude, longitude
-
-    #Error NOTE Section:
-        #use this to detail common errors you run into that we should fix :)
-    #some of these have decimal numbers. Figure out how to account for that.
 
 def getPercentage(num1, num2):
     return round(num1/num2 * 100, 2)
@@ -401,6 +397,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 latitude, longitude = assignLatLong(trimLine)
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
+                            if latitude == "numprob" or longitude == "numprob":
+                                latLongProblemDict[file] = line
                             else:
                                 skipPop = 1
                                 dataList.remove('latLong')
@@ -457,7 +455,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
-                            if latitude == "Number Problem" or longitude == "Number Problem":
+                            if latitude == "numprob" or longitude == "numprob":
                                 latLongProblemDict[file] = line
                             #else:
                                 #dataList.remove('latLong')
