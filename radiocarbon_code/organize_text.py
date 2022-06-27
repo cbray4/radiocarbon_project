@@ -157,7 +157,7 @@ def latLongFunc(text, isLong):
     if num1 != None:
         num2 = re.search('\d+|'+pattern, text[num1.end():])
         if num2 == None:
-            return "Number Problem"
+            return num1.group()
         if num2.group() == positiveDir:
             modifier = 1
             num2 = re.search('0', '0')
