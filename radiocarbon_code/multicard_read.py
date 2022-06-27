@@ -17,13 +17,13 @@ def readFile(file, sourceDir, outputDir):
 		#get rid of double spaces to make it easier to read
 		text = re.sub(' +', ' ', text)
 
-		#NOTE TO SELF: "w" means that if the file exists it will simply write over the whole thing
+		#NOTE: "w" means that if the file exists it will simply write over the whole thing
 		#new output method: output each OCR into separate files
 		outputFile = open(outputDir+"/"+filename[:len(filename)-4] + "_text.txt", 'w')
 		outputFile.write(text)
 		outputFile.close()
 
-		#this prints everything into the console/into one file
+		#old output method: this prints everything into the console/into one file
 		#print("FILENAME: " + filename + "\n")
 		#print(text + "\n")	
 
@@ -31,12 +31,12 @@ def readFile(file, sourceDir, outputDir):
 sourceDir = '/project/arcc-students/cbray3/radiocarbon_card_copies/ocr/' 		#where the pdfs are stored
 rootOutputDir = '/project/arcc-students/cbray3/radiocarbon_text/raw_output/'	#where the output should go
 
-#get the directory for the pdfs as a var the os library can work with
-
 #this counter keeps track of how many files it has gone through
-#mostly so there can be any form of output
 fileCounter = 0
 
+#this is needed so that the for loop below
+#doesn't accidentally attempt to read through
+#the initial directory, raw_output/
 skipFirst = 0
 
 for subDir, dirs, files in os.walk(sourceDir):
@@ -51,14 +51,7 @@ for subDir, dirs, files in os.walk(sourceDir):
 	else:
 		skipFirst = 1
 		continue
-	#End of file iterating
-#End of directory iterating
+	#End of file iteration
+#End of directory iteration
 print("Read through " + str(fileCounter) + " files.")
 print("Files were read from " + sourceDir + ".")
-
-
-#NOTES
-#when looping through the files, I need the serial number
-#luckily all the files have already been labled
-#serialNo = filename[:len(filename)-4]
-#basically just put this at the top of the output file

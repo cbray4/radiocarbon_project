@@ -1,8 +1,10 @@
-#this function will overwrite last_organized_output.txt
-#with the current file before anything is written out to it
-#it will then compare line by line to see if any lines have been
-#deleted or inserted. Useful for checking if anything is changing between
-#changes in this script
+#this function looks at last_organized_output.txt before it has been
+#overwritten, and compares it to organized_output.txt, which now
+#contains new output because it has been called before this script
+#in the Slurm script.
+#It will compare these two files line by line to see if any lines have been
+#deleted or inserted. Useful for checking if anything is changing based on 
+#changes in organize_text.py
 def compareOldNewOutput(outputDir):
     #first, write to old file
     oldFile = open(outputDir+'last_organized_output.txt', 'r')
