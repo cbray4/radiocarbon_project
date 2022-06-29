@@ -17,7 +17,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[1ligejromtnAMOVPQTI.:;•%«»>%*■♦^“’‘\'!f*/#_„,\-—( ]*$', text) and text != "\n":
+    if re.match('^[19sligejromtnkAHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -37,7 +37,7 @@ def assignLabName(text, dataList):
     #if a match is found and labNumber hasn't already
     #been assigned something, get that part of the string out
     #and assign labNumber
-    possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
+    possibleLabNum = re.search('[0-9a-zA-Z\-()]+-(\d)+', text)
     if possibleLabNum != None:
         if 'labNumber' in dataList:
             dataList.remove('labNumber')
@@ -92,8 +92,8 @@ def assignAge(text, dataList):
     elif text.lower() == "modern" or 'contemporary' in text.lower():
         ageAssigned = 1
         return text, "0"
-    elif re.search("(older than)|(at least)", text.lower()):
-        if text.lower() == "older than":
+    elif re.search("(older than)|(at least)|(apparent age)", text.lower()):
+        if text.lower() == "older than" or text.lower() == "apparent age":
             olderCheck = 1
             return "", ""
         else:
@@ -157,7 +157,7 @@ def latLongFunc(text, isLong):
     if num1 != None:
         num2 = re.search('\d+|'+pattern, text[num1.end():])
         if num2 == None:
-            return num1.group()
+            return "numprob"
         if num2.group() == positiveDir:
             modifier = 1
             num2 = re.search('0', '0')
@@ -190,7 +190,7 @@ def latLongFunc(text, isLong):
                 modifier = 1
         result = str((int(num1.group()) + int(num2.group())/60.0 + int(num3.group())/3600.0) * modifier)
     else:
-        result = "Number Problem"
+        result = "numprob"
     return result
 
 def assignLatLong(text):
@@ -210,7 +210,7 @@ def assignLatLong(text):
         latText, longText = newText.split('lon',1)
     elif 'unlocated' in newText or 'nolat' in newText:
         return "Unlocated", "Unlocated"
-    elif 'nolocation' in newText:
+    elif 'nolocation' in newText or 'notgiven' in newText:
         return "Unlocated", "Unlocated"
     else:
         return "N/A", "N/A"
@@ -219,10 +219,6 @@ def assignLatLong(text):
     longitude = latLongFunc(longText, 1)
     
     return latitude, longitude
-
-    #Error NOTE Section:
-        #use this to detail common errors you run into that we should fix :)
-    #some of these have decimal numbers. Figure out how to account for that.
 
 def getPercentage(num1, num2):
     return round(num1/num2 * 100, 2)
@@ -238,6 +234,23 @@ def writeToOutput(relevantDict, varName, fileCounter, file):
 def numOfUniqueKeys(listOfDicts):
     keys = list(set(chain.from_iterable(sub.keys() for sub in listOfDicts)))
     return keys
+
+def createMaterialsList():
+    returnThisList = []
+
+    #Open up the valid materials file and start reading in them lines
+    matFile = open('valid_materials.txt', 'r')
+    fileLines = matFile.readlines()
+
+    #split the lines by : since that's on every single line
+    #this will ensure that I get only the material part
+    #not the numOfInstances part
+    for line in fileLines:
+        actualMat = line.split(':', 1)
+        returnThisList.append(actualMat[0])
+
+    matFile.close()
+    return returnThisList
 
 #--------------------
 #       NOTES
@@ -313,6 +326,8 @@ typeOfDateDict = {}
 siteIdentifieDict = {}
 latLongProblemDict = {}
 cannotUploadList = {}
+
+materialList = createMaterialsList()
 
 skipFirst = 0
 
@@ -401,6 +416,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 latitude, longitude = assignLatLong(trimLine)
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
+                            if latitude == "numprob" or longitude == "numprob":
+                                latLongProblemDict[file] = line
                             else:
                                 skipPop = 1
                                 dataList.remove('latLong')
@@ -432,9 +449,17 @@ for subDir, dirs, files in os.walk(sourceDir):
         #Once they've been put in set a flag or increase infoCounter,
         #something along those lines.
                         if infoCounter == 0 and 'location' in dataList:
-                            location += assignLocation(line)
+                            if line in materialList:
+                                #print("material dated read in as location")
+                                materialDated = assignMatDated(line)
+                            else:
+                                location += assignLocation(line)
                         elif infoCounter == 1 and 'materialDated' in dataList:
-                            materialDated = assignMatDated(line)
+                            if line in materialList:
+                                materialDated = assignMatDated(line)
+                            else:
+                                #print("location read in as material dated")
+                                location += assignLocation(line)
                         elif infoCounter == 2 and 'labName' in dataList:
                             labName = assignLabName(line, dataList)
                         elif infoCounter == 3 and 'labNumber' in dataList:
@@ -457,7 +482,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line
-                            if latitude == "Number Problem" or longitude == "Number Problem":
+                            if latitude == "numprob" or longitude == "numprob":
                                 latLongProblemDict[file] = line
                             #else:
                                 #dataList.remove('latLong')
