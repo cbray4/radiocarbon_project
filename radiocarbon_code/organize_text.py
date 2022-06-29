@@ -37,7 +37,7 @@ def assignLabName(text, dataList):
     #if a match is found and labNumber hasn't already
     #been assigned something, get that part of the string out
     #and assign labNumber
-    possibleLabNum = re.search('[0-9a-zA-Z\-]+-(\d)+', text)
+    possibleLabNum = re.search('[0-9a-zA-Z\-()]+-(\d)+', text)
     if possibleLabNum != None:
         if 'labNumber' in dataList:
             dataList.remove('labNumber')
@@ -92,8 +92,8 @@ def assignAge(text, dataList):
     elif text.lower() == "modern" or 'contemporary' in text.lower():
         ageAssigned = 1
         return text, "0"
-    elif re.search("(older than)|(at least)", text.lower()):
-        if text.lower() == "older than":
+    elif re.search("(older than)|(at least)|(apparent age)", text.lower()):
+        if text.lower() == "older than" or text.lower() == "apparent age":
             olderCheck = 1
             return "", ""
         else:
@@ -235,6 +235,23 @@ def numOfUniqueKeys(listOfDicts):
     keys = list(set(chain.from_iterable(sub.keys() for sub in listOfDicts)))
     return keys
 
+def createMaterialsList():
+    returnThisList = []
+
+    #Open up the valid materials file and start reading in them lines
+    matFile = open('valid_materials.txt', 'r')
+    fileLines = matFile.readlines()
+
+    #split the lines by : since that's on every single line
+    #this will ensure that I get only the material part
+    #not the numOfInstances part
+    for line in fileLines:
+        actualMat = line.split(':', 1)
+        returnThisList.append(actualMat[0])
+
+    matFile.close()
+    return returnThisList
+
 #--------------------
 #       NOTES
 #--------------------
@@ -309,6 +326,8 @@ typeOfDateDict = {}
 siteIdentifieDict = {}
 latLongProblemDict = {}
 cannotUploadList = {}
+
+materialList = createMaterialsList()
 
 skipFirst = 0
 
@@ -430,9 +449,17 @@ for subDir, dirs, files in os.walk(sourceDir):
         #Once they've been put in set a flag or increase infoCounter,
         #something along those lines.
                         if infoCounter == 0 and 'location' in dataList:
-                            location += assignLocation(line)
+                            if line in materialList:
+                                #print("material dated read in as location")
+                                materialDated = assignMatDated(line)
+                            else:
+                                location += assignLocation(line)
                         elif infoCounter == 1 and 'materialDated' in dataList:
-                            materialDated = assignMatDated(line)
+                            if line in materialList:
+                                materialDated = assignMatDated(line)
+                            else:
+                                #print("location read in as material dated")
+                                location += assignLocation(line)
                         elif infoCounter == 2 and 'labName' in dataList:
                             labName = assignLabName(line, dataList)
                         elif infoCounter == 3 and 'labNumber' in dataList:
