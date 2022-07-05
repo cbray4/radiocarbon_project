@@ -358,7 +358,6 @@ for subDir, dirs, files in os.walk(sourceDir):
             os.makedirs(outputDir)
         for file in files:
         #reset counters/flags here :)
-            infoCounter = 0
             ageAssigned = 0
             olderCheck = 0
             skipPop = 0
@@ -395,10 +394,9 @@ for subDir, dirs, files in os.walk(sourceDir):
                     if checkBadRead(line) == 0:
                         if line == '\n' and badRead == 0:
                             #print("infoCounter increased.") #DEBUG
-                            if infoCounter == 7 or not dataList:
+                            if not dataList:
                                 break
                             if skipPop == 0:
-                                infoCounter += 1
                                 dataList.pop(0)
                             else:
                                 skipPop = 0
@@ -424,8 +422,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     ageDict[file] = line
                                 else:
                                     skipPop = 1
-                                    if infoCounter != 4:
-                                        dataList.remove('age')
+                                    dataList.remove('age')
                                 continue
                         elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
                             labNumber = assignLabNum(line)
@@ -456,8 +453,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 if typeOfDate == "N/A":
                                     typeOfDateDict[file] = line
                                 else:
-                                    if infoCounter != 6:
-                                        skipPop = 1
+                                    skipPop = 1
                                     dataList.remove('typeOfDate')
                             continue
                         elif 'lab' in line.lower() or 'univ' in line.lower():
@@ -469,7 +465,6 @@ for subDir, dirs, files in os.walk(sourceDir):
                         elif re.search('B *. *C *.', line) or re.search('liquid scin', line.lower()):
                             continue
                         elif 'corrected' in line.lower():
-                            infoCounter -= 1
                             continue
 
         #NOTE AREA
@@ -479,25 +474,27 @@ for subDir, dirs, files in os.walk(sourceDir):
         #(Age/LatLong) and have specific checks for their unique symbols
         #Once they've been put in set a flag or increase infoCounter,
         #something along those lines.
-                        if infoCounter == 0 and 'location' in dataList:
+                        currentData = dataList[0]
+
+                        if currentData == 'location':
                             matLine = line.replace(' ', '').lower()
                             if matLine in materialList:
                                 #print("material dated read in as location")
                                 materialDated += assignMatDated(line) + " "
                             else:
                                 location += assignLocation(line)
-                        elif infoCounter == 1 and 'materialDated' in dataList:
+                        elif currentData == 'materialDated':
                             matLine = line.replace(' ', '').lower()
                             if matLine in materialList:
                                 materialDated += assignMatDated(line) + " "
                             else:
                                 #print("location read in as material dated")
                                 location += assignLocation(line)
-                        elif infoCounter == 2 and 'labName' in dataList:
+                        elif currentData == 'labName':
                             labName = assignLabName(line, dataList)
-                        elif infoCounter == 3 and 'labNumber' in dataList:
+                        elif currentData == 'labNumber':
                             labNumber = assignLabNum(line)
-                        elif infoCounter == 4 and 'age' in dataList:
+                        elif currentData == 'age':
                             if ageAssigned == 1:
                                 continue
                             age, ageSigma = assignAge(line, dataList)
@@ -509,7 +506,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 cannotUploadList[file] = "C14/C13 Format, Fix Later"
                             #else:
                                 #dataList.remove('age')
-                        elif infoCounter == 5 and 'latLong' in dataList:
+                        elif currentData == 'latLong':
                             latitude, longitude = assignLatLong(line)
                             #If Lat and Long are separated onto two different lines
                             #some stuff needs to happen 
@@ -519,7 +516,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 latLongProblemDict[file] = line
                             #else:
                                 #dataList.remove('latLong')
-                        elif infoCounter == 6 and 'typeOfDate' in dataList:
+                        elif currentData == 'typeOfDate':
                             typeOfDate = assignTypeOfDate(line)
                             if typeOfDate == "N/A":
                                 typeOfDateDict[file] = line
