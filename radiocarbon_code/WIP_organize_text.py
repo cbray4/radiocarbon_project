@@ -5,6 +5,7 @@ import re
 import os
 
 from itertools import chain
+
 #global variable to make sure that the age only reads in the first line
 ageAssigned = 0
 #used in assignAge() to tell it to take the next line
@@ -29,7 +30,7 @@ def assignLocation(text):
 
 def assignMatDated(text):
     #matDated also doesn't have anything special. Assign as is
-    return text
+    return text + " "
 
 def assignLabName(text, dataList):
     #this check was added since labNumber is commonly read
@@ -348,6 +349,24 @@ cannotUploadList = {}
 
 materialList = createMaterialsList()
 
+validAgeSearchList = [
+    '±',
+    '+',
+    'i',
+    '>',
+    '<',
+    '^',
+    'yr', 
+    'yrs',
+    'C14',
+    'C13',
+    'modern',
+    'contemporary',
+    'older than',
+    'at least',
+    'apparent age'
+]
+
 skipFirst = 0
 
 for subDir, dirs, files in os.walk(sourceDir):
@@ -410,43 +429,78 @@ for subDir, dirs, files in os.walk(sourceDir):
 
                         if re.search('A *. *D *.', line):
                             continue
+                        elif re.search('B *. *C *.', line) or re.search('liquid scin', line.lower()):
+                            continue
+                        elif 'corrected' in line.lower():
+                            continue
 
                         #Begin checking for specific variables in each line
-                        #Double check how this is interacting with the infoCounter
-                        #seriously I'm not entirely sure and I think that's
-                        #the main problem at the moment.
-                        if '±' in line or '>' in line or '<' in line or 'yr' in line or 'yrs' in line:
+
+                        #   0 : location
+                        #   1 : materialDated
+                        #   2 : labName
+                        #   3 : labNumber
+                        #   4 : age, ageSigma
+                        #   5 : latitude, longitude
+                        #   6 : typeOfDate
+
+                        #Make sure to remove data from the list after these
+                        #and to make skipPop = 1
+
+                        if line.replace(' ', '').lower() in materialList:
+                            if 'materialDated' in dataList:
+                                materialDated = assignMatDated(line)
+                                dataList.remove('materialDated')
+                                skipPop = 1
+                                continue
+                        elif 'lab' in line.lower() or 'univ' in line.lower():
+                            if 'labName' in dataList:
+                                labName = assignLabName(line, dataList)
+                                dataList.remove('labName')
+                                skipPop = 1
+                                continue
+                        elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
+                            if 'labNumber' in dataList:
+                                labNumber = assignLabNum(line)
+                                dataList.remove('labNumber')
+                                skipPop = 1
+                                continue
+                        elif any(item in line for item in validAgeSearchList):
                             if 'age' in dataList:
+                                if ageAssigned == 1:
+                                    continue
+                                if "C14" in age:
+                                    cannotUploadList[file] = "C14/C13 Format, Fix Later"
+                                    continue
                                 age, ageSigma = assignAge(line, dataList)
                                 if age == "N/A":
                                     ageDict[file] = line
+                                elif olderCheck == 1:
+                                    continue
                                 else:
                                     skipPop = 1
                                     dataList.remove('age')
                                 continue
-                        elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
-                            labNumber = assignLabNum(line)
-                            if 'labNumber' in dataList:
-                                dataList.remove('labNumber')
-                            skipPop = 1
-                            continue
-                        elif re.search('(lat[^i])|(long)', line.lower()) and 'latLong' in dataList:
-                            trimLine = line.replace(' ', '')
-                            if 'long' not in trimLine.lower():
-                                latitude = latLongFunc(trimLine, 0)
+                        elif re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
+                            if 'latLong' in dataList:
+                                trimLine = line.replace(' ', '')
+                                if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine.lower()):
+                                    latitude, longitude = assignLatLong(trimLine)
+                                elif 'long' not in trimLine.lower():
+                                    latitude = latLongFunc(trimLine, 0)
+                                    continue
+                                elif 'lat' not in trimLine.lower():
+                                    longitude = latLongFunc(trimLine, 1)
+                                else:
+                                    latitude, longitude = assignLatLong(trimLine)
+                                if latitude == "N/A" or longitude == "N/A":
+                                    latLongDict[file] = line
+                                if latitude == "numprob" or longitude == "numprob":
+                                    latLongProblemDict[file] = line
+                                else:
+                                    skipPop = 1
+                                    dataList.remove('latLong')
                                 continue
-                            elif 'lat' not in trimLine.lower():
-                                longitude = latLongFunc(trimLine, 1)
-                            else:
-                                latitude, longitude = assignLatLong(trimLine)
-                            if latitude == "N/A" or longitude == "N/A":
-                                latLongDict[file] = line
-                            if latitude == "numprob" or longitude == "numprob":
-                                latLongProblemDict[file] = line
-                            else:
-                                skipPop = 1
-                                dataList.remove('latLong')
-                            continue
                         elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
                             if 'typeOfDate' in dataList:
                                 typeOfDate = assignTypeOfDate(line)
@@ -456,16 +510,6 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     skipPop = 1
                                     dataList.remove('typeOfDate')
                             continue
-                        elif 'lab' in line.lower() or 'univ' in line.lower():
-                            if 'labName' in dataList:
-                                labName = assignLabName(line, dataList)
-                                dataList.remove('labName')
-                                skipPop = 1
-                                continue
-                        elif re.search('B *. *C *.', line) or re.search('liquid scin', line.lower()):
-                            continue
-                        elif 'corrected' in line.lower():
-                            continue
 
         #NOTE AREA
         #so one problem I've run into is that if the order is messed up at all
@@ -474,38 +518,23 @@ for subDir, dirs, files in os.walk(sourceDir):
         #(Age/LatLong) and have specific checks for their unique symbols
         #Once they've been put in set a flag or increase infoCounter,
         #something along those lines.
-                        currentData = dataList[0]
+                        if not dataList:
+                            break
+                        else:
+                            currentData = dataList[0]
 
                         if currentData == 'location':
-                            matLine = line.replace(' ', '').lower()
-                            if matLine in materialList:
-                                #print("material dated read in as location")
-                                materialDated += assignMatDated(line) + " "
-                            else:
-                                location += assignLocation(line)
+                            location += assignLocation(line)
                         elif currentData == 'materialDated':
-                            matLine = line.replace(' ', '').lower()
-                            if matLine in materialList:
-                                materialDated += assignMatDated(line) + " "
-                            else:
-                                #print("location read in as material dated")
-                                location += assignLocation(line)
+                            materialDated += assignMatDated(line)
                         elif currentData == 'labName':
                             labName = assignLabName(line, dataList)
                         elif currentData == 'labNumber':
                             labNumber = assignLabNum(line)
                         elif currentData == 'age':
-                            if ageAssigned == 1:
-                                continue
                             age, ageSigma = assignAge(line, dataList)
-                            if age == "N/A":
+                            if age == "N/A" or ageSigma == "N/A":
                                 ageDict[file] = line
-                            elif olderCheck == 1:
-                                continue
-                            elif "C14" in age:
-                                cannotUploadList[file] = "C14/C13 Format, Fix Later"
-                            #else:
-                                #dataList.remove('age')
                         elif currentData == 'latLong':
                             latitude, longitude = assignLatLong(line)
                             #If Lat and Long are separated onto two different lines
@@ -514,8 +543,6 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 latLongDict[file] = line
                             if latitude == "numprob" or longitude == "numprob":
                                 latLongProblemDict[file] = line
-                            #else:
-                                #dataList.remove('latLong')
                         elif currentData == 'typeOfDate':
                             typeOfDate = assignTypeOfDate(line)
                             if typeOfDate == "N/A":
