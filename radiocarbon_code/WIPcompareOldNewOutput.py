@@ -35,8 +35,8 @@ def compareOldNewOutput(outputDir):
 #write it out to last_organized_output.txt, which
 #will allow us to compare what has changed.
 def overwriteOldOutput(outputDir): 
-    oldFile = open(outputDir+'last_organized_output.txt', 'w')
-    newFile = open(outputDir+'organized_output.txt', 'r')
+    oldFile = open(outputDir+'WIP_last_organized_output.txt', 'w')
+    newFile = open(outputDir+'WIP_organized_output.txt', 'r')
 
     for line in newFile:
         oldFile.write(line)

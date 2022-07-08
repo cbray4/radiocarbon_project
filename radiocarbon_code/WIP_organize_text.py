@@ -18,7 +18,7 @@ olderCheck = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[19sligejromtnkAHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
+    if re.match('^[19sligejromtnkABHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -272,6 +272,14 @@ def printDictionarySorted(dict):
     for key in newList:
         print(key, "->", dict[key])
 
+#Send in dataList for this function.
+#To be used before continue statements
+#in the pattern searching section
+def removeLocation(dataList):
+    if 'location' in dataList:
+        dataList.remove('location')
+    return dataList
+
 #--------------------
 #       NOTES
 #--------------------
@@ -352,7 +360,7 @@ materialList = createMaterialsList()
 validAgeSearchList = [
     '±',
     '+',
-    'i',
+    #'i',
     '>',
     '<',
     '^',
@@ -431,7 +439,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                             continue
                         elif re.search('B *. *C *.', line) or re.search('liquid scin', line.lower()):
                             continue
-                        elif 'corrected' in line.lower():
+                        elif 'corrected' in line.lower() or 'solid carbon' in line.lower():
+                            skipPop = 1
                             continue
 
                         #Begin checking for specific variables in each line
@@ -472,25 +481,44 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 if "C14" in age:
                                     cannotUploadList[file] = "C14/C13 Format, Fix Later"
                                     continue
-                                age, ageSigma = assignAge(line, dataList)
-                                if age == "N/A":
-                                    ageDict[file] = line
-                                elif olderCheck == 1:
+                                if '<' in line or '^' in line or '>' in line:
+                                    if not re.search('\d+', line):
+                                        pass
+                                    else:
+                                        age, ageSigma = assignAge(line, dataList)
+                                        if age == "N/A":
+                                            ageDict[file] = line
+                                        elif olderCheck == 1:
+                                            continue
+                                        else:
+                                            skipPop = 1
+                                            dataList.remove('age')
+                                        continue
+                                else: 
+                                    age, ageSigma = assignAge(line, dataList)
+                                    if age == "N/A":
+                                        ageDict[file] = line
+                                    elif olderCheck == 1:
+                                        continue
+                                    else:
+                                        skipPop = 1
+                                        dataList.remove('age')
                                     continue
-                                else:
-                                    skipPop = 1
-                                    dataList.remove('age')
-                                continue
                         elif re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
                             if 'latLong' in dataList:
                                 trimLine = line.replace(' ', '')
                                 if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine.lower()):
                                     latitude, longitude = assignLatLong(trimLine)
+                                elif re.search('-+', trimLine):
+                                    latitude = "Unlocated"
+                                    longitude = "Unlocated"
                                 elif 'long' not in trimLine.lower():
                                     latitude = latLongFunc(trimLine, 0)
+                                    skipPop = 1
                                     continue
                                 elif 'lat' not in trimLine.lower():
                                     longitude = latLongFunc(trimLine, 1)
+                                    skipPop = 1
                                 else:
                                     latitude, longitude = assignLatLong(trimLine)
                                 if latitude == "N/A" or longitude == "N/A":
@@ -534,19 +562,19 @@ for subDir, dirs, files in os.walk(sourceDir):
                         elif currentData == 'age':
                             age, ageSigma = assignAge(line, dataList)
                             if age == "N/A" or ageSigma == "N/A":
-                                ageDict[file] = line
+                                ageDict[file] = line + " currentData Error"
                         elif currentData == 'latLong':
                             latitude, longitude = assignLatLong(line)
                             #If Lat and Long are separated onto two different lines
                             #some stuff needs to happen 
                             if latitude == "N/A" or longitude == "N/A":
-                                latLongDict[file] = line
+                                latLongDict[file] = line + " currentData Error"
                             if latitude == "numprob" or longitude == "numprob":
-                                latLongProblemDict[file] = line
+                                latLongProblemDict[file] = line + " currentData Error"
                         elif currentData == 'typeOfDate':
                             typeOfDate = assignTypeOfDate(line)
                             if typeOfDate == "N/A":
-                                typeOfDateDict[file] = line
+                                typeOfDateDict[file] = line + " currentData Error"
                     else:
                         badRead = 1
                         continue
@@ -660,4 +688,4 @@ print("\n\n" + str(len(latLongProblemDict)) + " FILES HAVE PROBLEMS WITH LAT/LON
 printDictionarySorted(latLongProblemDict)
 
 #DEBUG PRINTING SECTION
-printListOfFiles(materialDatedDict)
+printListOfFiles(labNumberDict)
