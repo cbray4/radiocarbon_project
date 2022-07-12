@@ -1,4 +1,5 @@
 #import regular expressions, which are used a lot in this script
+from ast import Global
 import re
 
 #this'll let me iterate through all the text files in the raw_output directory
@@ -11,7 +12,9 @@ ageAssigned = 0
 #used in assignAge() to tell it to take the next line
 #(after reading in Older than) and setting that as age
 olderCheck = 0
-
+#Global Variable for when longitude numbers
+#show up on the next line
+longNextLine = 0
 
 #--------------------
 #     FUNCTIONS
@@ -195,6 +198,7 @@ def latLongFunc(text, isLong):
     return result
 
 def assignLatLong(text):
+    global longNextLine
     #FORMAT: Lat. ##°(##'##") x Long. ##°(##'##")
     #N = +, S = -
     #E = +, W = -
@@ -217,7 +221,11 @@ def assignLatLong(text):
         return "N/A", "N/A"
 
     latitude = latLongFunc(latText, 0)
-    longitude = latLongFunc(longText, 1)
+    if not re.search('\d+', longText):
+        longitude = ""
+        longNextLine = 1
+    else:
+        longitude = latLongFunc(longText, 1)
     
     return latitude, longitude
 
@@ -357,6 +365,8 @@ cannotUploadList = {}
 
 materialList = createMaterialsList()
 
+lastDataRemoved = ""
+
 validAgeSearchList = [
     '±',
     '+',
@@ -424,7 +434,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             if not dataList:
                                 break
                             if skipPop == 0:
-                                dataList.pop(0)
+                                lastDataRemoved = dataList.pop(0)
                             else:
                                 skipPop = 0
                             continue
@@ -456,22 +466,27 @@ for subDir, dirs, files in os.walk(sourceDir):
                         #Make sure to remove data from the list after these
                         #and to make skipPop = 1
 
+                        trimLine = line.replace(' ', '').lower()
+
                         if line.replace(' ', '').lower() in materialList:
                             if 'materialDated' in dataList:
                                 materialDated = assignMatDated(line)
                                 dataList.remove('materialDated')
+                                lastDataRemoved = 'materialDated'
                                 skipPop = 1
                                 continue
                         elif 'lab' in line.lower() or 'univ' in line.lower():
                             if 'labName' in dataList:
                                 labName = assignLabName(line, dataList)
                                 dataList.remove('labName')
+                                lastDataRemoved = 'labName'
                                 skipPop = 1
                                 continue
-                        elif re.search('[0-9a-zA-Z\-]+-(\d)+', line):
+                        elif re.search('^([0-9a-zA-Z\-]+-(\d)+)$', line):
                             if 'labNumber' in dataList:
                                 labNumber = assignLabNum(line)
                                 dataList.remove('labNumber')
+                                lastDataRemoved = 'labNumber'
                                 skipPop = 1
                                 continue
                         elif any(item in line for item in validAgeSearchList):
@@ -493,6 +508,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                         else:
                                             skipPop = 1
                                             dataList.remove('age')
+                                            lastDataRemoved = 'age'
                                         continue
                                 else: 
                                     age, ageSigma = assignAge(line, dataList)
@@ -503,6 +519,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     else:
                                         skipPop = 1
                                         dataList.remove('age')
+                                        lastDataRemoved = 'age'
                                     continue
                         elif re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
                             if 'latLong' in dataList:
@@ -521,6 +538,9 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     skipPop = 1
                                 else:
                                     latitude, longitude = assignLatLong(trimLine)
+                                if longNextLine == 1:
+                                    skipPop = 1
+                                    continue
                                 if latitude == "N/A" or longitude == "N/A":
                                     latLongDict[file] = line
                                 if latitude == "numprob" or longitude == "numprob":
@@ -528,6 +548,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 else:
                                     skipPop = 1
                                     dataList.remove('latLong')
+                                    lastDataRemoved = 'latLong'
                                 continue
                         elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
                             if 'typeOfDate' in dataList:
@@ -537,6 +558,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 else:
                                     skipPop = 1
                                     dataList.remove('typeOfDate')
+                                    lastDataRemoved = 'typeOfDate'
                             continue
 
         #NOTE AREA
