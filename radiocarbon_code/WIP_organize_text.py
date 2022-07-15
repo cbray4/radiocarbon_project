@@ -1,5 +1,4 @@
 #import regular expressions, which are used a lot in this script
-from ast import Global
 import re
 
 #this'll let me iterate through all the text files in the raw_output directory
@@ -21,7 +20,7 @@ longNextLine = 0
 #--------------------
 def checkBadRead(text):
     #make sure to update this pattern with any other characters that show up
-    if re.match('^[19sligejromtnkABHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
+    if re.match('^[1479sligejromwtnkABHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         return 1
     else:
@@ -68,7 +67,7 @@ def assignAge(text, dataList):
     #and assign labNumber
     checkText = text.replace(' ', '')
 
-    possibleLabNum = re.search('[0-9a-zA-Z\-()]+-(\d)+', checkText)
+    possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', checkText)
     if possibleLabNum != None:
         if 'labNumber' in dataList:
             dataList.remove('labNumber')
@@ -333,6 +332,9 @@ fileCounter = 0
 #holes on the sides of the images
 badRead = 0
 
+#this will be used to limit things I guess. 
+itemCounter = 0
+
 #setup directory variables
 sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/"
 rootOutputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/"
@@ -385,6 +387,21 @@ validAgeSearchList = [
     'apparent age'
 ]
 
+invalidAgeSearchList = [
+    'myrtle',
+    'syria',
+    'ayrshire',
+    'pyramid',
+    'lyropecten',
+    'anadyr',
+    'ingsmyr',
+    'myren',
+    'akureyri',
+    'styria',
+    'veyrins',
+    'kyriat',
+]
+
 skipFirst = 0
 
 for subDir, dirs, files in os.walk(sourceDir):
@@ -394,9 +411,12 @@ for subDir, dirs, files in os.walk(sourceDir):
         if not os.path.exists(outputDir):
             os.makedirs(outputDir)
         for file in files:
-        #reset counters/flags here :)
+            #reset counters/flags here :)
+            itemCounter = 0
             ageAssigned = 0
             olderCheck = 0
+            longNextLine = 0
+            lastDataRemoved = ""
             skipPop = 0
             dataList = [
             'location',
@@ -431,18 +451,21 @@ for subDir, dirs, files in os.walk(sourceDir):
                     if checkBadRead(line) == 0:
                         if line == '\n' and badRead == 0:
                             #print("infoCounter increased.") #DEBUG
-                            if not dataList:
+                            itemCounter += 1
+                            if len(dataList) == 1 or itemCounter == 9:
                                 break
-                            if skipPop == 0:
-                                lastDataRemoved = dataList.pop(0)
-                            else:
-                                skipPop = 0
+                            #if skipPop == 0 and 'location' not in dataList:  
+                            #    lastDataRemoved = dataList.pop(0)
+                            #elif lastDataRemoved != "" and location != "" and 'location' in dataList:
+                            #    lastDataRemoved = dataList.pop(0)
+                            #    skipPop = 0
+                            #else:
+                            #    skipPop = 0
                             continue
                         elif badRead == 1:
                             badRead = 0
                             continue
                         line = line.rstrip()
-
                         #print(repr(line)) #DEBUG
 
                         if re.search('A *. *D *.', line):
@@ -452,7 +475,11 @@ for subDir, dirs, files in os.walk(sourceDir):
                         elif 'corrected' in line.lower() or 'solid carbon' in line.lower():
                             skipPop = 1
                             continue
-
+                        
+                        if longNextLine == 1:
+                            longitude = latLongFunc(trimLine, 1)
+                            longNextLine = 0
+                            continue
                         #Begin checking for specific variables in each line
 
                         #   0 : location
@@ -467,29 +494,30 @@ for subDir, dirs, files in os.walk(sourceDir):
                         #and to make skipPop = 1
 
                         trimLine = line.replace(' ', '').lower()
+                        lowerLine = line.lower()
 
-                        if line.replace(' ', '').lower() in materialList:
+                        if trimLine in materialList:
                             if 'materialDated' in dataList:
                                 materialDated = assignMatDated(line)
                                 dataList.remove('materialDated')
                                 lastDataRemoved = 'materialDated'
                                 skipPop = 1
                                 continue
-                        elif 'lab' in line.lower() or 'univ' in line.lower():
+                        if re.search('([^a]lab)|(univ)|(u.s.)|(geol.survery)|(unit)|(packardinstrument)|(inst)', trimLine):
                             if 'labName' in dataList:
                                 labName = assignLabName(line, dataList)
                                 dataList.remove('labName')
                                 lastDataRemoved = 'labName'
                                 skipPop = 1
                                 continue
-                        elif re.search('^([0-9a-zA-Z\-]+-(\d)+)$', line):
+                        if re.search('([0-9a-zA-Z\-]{1,4}-(\d){1,4})', trimLine):
                             if 'labNumber' in dataList:
                                 labNumber = assignLabNum(line)
                                 dataList.remove('labNumber')
                                 lastDataRemoved = 'labNumber'
                                 skipPop = 1
                                 continue
-                        elif any(item in line for item in validAgeSearchList):
+                        if any(item in line for item in validAgeSearchList) and all(item not in lowerLine for item in invalidAgeSearchList):
                             if 'age' in dataList:
                                 if ageAssigned == 1:
                                     continue
@@ -521,26 +549,23 @@ for subDir, dirs, files in os.walk(sourceDir):
                                         dataList.remove('age')
                                         lastDataRemoved = 'age'
                                     continue
-                        elif re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
+                        if re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
                             if 'latLong' in dataList:
                                 trimLine = line.replace(' ', '')
-                                if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine.lower()):
+                                if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
                                     latitude, longitude = assignLatLong(trimLine)
-                                elif re.search('-+', trimLine):
+                                elif re.search('(lat)-+', trimLine):
                                     latitude = "Unlocated"
                                     longitude = "Unlocated"
-                                elif 'long' not in trimLine.lower():
+                                elif 'long' not in trimLine:
                                     latitude = latLongFunc(trimLine, 0)
                                     skipPop = 1
                                     continue
-                                elif 'lat' not in trimLine.lower():
+                                elif 'lat' not in trimLine:
                                     longitude = latLongFunc(trimLine, 1)
                                     skipPop = 1
                                 else:
                                     latitude, longitude = assignLatLong(trimLine)
-                                if longNextLine == 1:
-                                    skipPop = 1
-                                    continue
                                 if latitude == "N/A" or longitude == "N/A":
                                     latLongDict[file] = line
                                 if latitude == "numprob" or longitude == "numprob":
@@ -550,7 +575,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('latLong')
                                     lastDataRemoved = 'latLong'
                                 continue
-                        elif re.search('(geology)|(archaeology)|(paleontology)', line.lower()):
+                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(ground)|(atmo)', lowerLine):
                             if 'typeOfDate' in dataList:
                                 typeOfDate = assignTypeOfDate(line)
                                 if typeOfDate == "N/A":
@@ -581,6 +606,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             labName = assignLabName(line, dataList)
                         elif currentData == 'labNumber':
                             labNumber = assignLabNum(line)
+                            labNumberDict[file] = line + " currentData Error"
                         elif currentData == 'age':
                             age, ageSigma = assignAge(line, dataList)
                             if age == "N/A" or ageSigma == "N/A":
@@ -648,9 +674,6 @@ for subDir, dirs, files in os.walk(sourceDir):
 #THIS WOULD MAKE ITERATING THROUGH ALL OF THESE OTHER THINGS
 #A LOT EASIER TOO. DO THAT ON MONDAY :)
 
-
-
-
 listOfDicts = [
     locationDict,
     materialDatedDict,
@@ -710,4 +733,4 @@ print("\n\n" + str(len(latLongProblemDict)) + " FILES HAVE PROBLEMS WITH LAT/LON
 printDictionarySorted(latLongProblemDict)
 
 #DEBUG PRINTING SECTION
-printListOfFiles(labNumberDict)
+printListOfFiles(labNameDict)
