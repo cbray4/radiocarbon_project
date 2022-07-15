@@ -220,7 +220,7 @@ def assignLatLong(text):
         return "N/A", "N/A"
 
     latitude = latLongFunc(latText, 0)
-    if not re.search('\d+', longText):
+    if False: #not re.search('\d+', longText):
         longitude = ""
         longNextLine = 1
     else:
@@ -476,10 +476,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                             skipPop = 1
                             continue
                         
-                        if longNextLine == 1:
-                            longitude = latLongFunc(trimLine, 1)
-                            longNextLine = 0
-                            continue
+                        
                         #Begin checking for specific variables in each line
 
                         #   0 : location
@@ -493,8 +490,14 @@ for subDir, dirs, files in os.walk(sourceDir):
                         #Make sure to remove data from the list after these
                         #and to make skipPop = 1
 
-                        trimLine = line.replace(' ', '').lower()
+                        trimLine = line.replace(' ', '')
+                        trimLine = trimLine.lower()
                         lowerLine = line.lower()
+
+                        #if longNextLine == 1:
+                        #    longitude = latLongFunc(trimLine, 1)
+                        #    longNextLine = 0
+                        #    continue
 
                         if trimLine in materialList:
                             if 'materialDated' in dataList:
@@ -551,7 +554,6 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     continue
                         if re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
                             if 'latLong' in dataList:
-                                trimLine = line.replace(' ', '')
                                 if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
                                     latitude, longitude = assignLatLong(trimLine)
                                 elif re.search('(lat)-+', trimLine):
