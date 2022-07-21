@@ -40,12 +40,6 @@ def assignLabName(text, dataList):
     #if a match is found and labNumber hasn't already
     #been assigned something, get that part of the string out
     #and assign labNumber
-    possibleLabNum = re.search('[0-9a-zA-Z\-()]+-(\d)+', text)
-    if possibleLabNum != None:
-        if 'labNumber' in dataList:
-            dataList.remove('labNumber')
-            assignLabNum(possibleLabNum.group())
-        text = text.replace(possibleLabNum.group(), '')
     return text
 
 def assignLabNum(text):
@@ -59,20 +53,6 @@ def assignLabNum(text):
 #multiple times it only takes the first line given
 def assignAge(text, dataList):
     global ageAssigned, olderCheck
-
-    #this check was added since labNumber is commonly read
-    #on the same line as the age (or labName)
-    #if a match is found and labNumber hasn't already
-    #been assigned something, get that part of the string out
-    #and assign labNumber
-    checkText = text.replace(' ', '')
-
-    possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', checkText)
-    if possibleLabNum != None:
-        if 'labNumber' in dataList:
-            dataList.remove('labNumber')
-            assignLabNum(possibleLabNum.group())
-        text = text.replace(possibleLabNum.group(), '')
 
     if olderCheck == 1:
         return text, ""
@@ -506,22 +486,34 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 lastDataRemoved = 'materialDated'
                                 skipPop = 1
                                 continue
-                        if re.search('([^a]lab)|(univ)|(u.s.)|(geol.survery)|(unit)|(packardinstrument)|(inst)', trimLine):
+                        if re.search('(lab[^a])|(univ)|(u.s.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine):
                             if 'labName' in dataList:
+                                possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', line)
+                                if possibleLabNum != None:
+                                    if 'labNumber' in dataList:
+                                        dataList.remove('labNumber')
+                                        labNumber = assignLabNum(possibleLabNum.group())
+                                    line = line.replace(possibleLabNum.group(), '')
+
                                 labName = assignLabName(line, dataList)
                                 dataList.remove('labName')
                                 lastDataRemoved = 'labName'
                                 skipPop = 1
                                 continue
-                        if re.search('([0-9a-zA-Z\-]{1,4}-(\d){1,4})', trimLine):
-                            if 'labNumber' in dataList:
-                                labNumber = assignLabNum(line)
-                                dataList.remove('labNumber')
-                                lastDataRemoved = 'labNumber'
-                                skipPop = 1
-                                continue
                         if any(item in line for item in validAgeSearchList) and all(item not in lowerLine for item in invalidAgeSearchList):
                             if 'age' in dataList:
+                                #this check was added since labNumber is commonly read
+                                #on the same line as the age (or labName)
+                                #if a match is found and labNumber hasn't already
+                                #been assigned something, get that part of the string out
+                                #and assign labNumber
+                                possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', line)
+                                if possibleLabNum != None:
+                                    if 'labNumber' in dataList:
+                                        dataList.remove('labNumber')
+                                        labNumber = assignLabNum(possibleLabNum.group())
+                                    line = line.replace(possibleLabNum.group(), '')
+
                                 if ageAssigned == 1:
                                     continue
                                 if "C14" in age:
@@ -552,6 +544,13 @@ for subDir, dirs, files in os.walk(sourceDir):
                                         dataList.remove('age')
                                         lastDataRemoved = 'age'
                                     continue
+                        if re.search('([0-9a-zA-Z\-]{1,4}-(\d){1,4})', trimLine):
+                            if 'labNumber' in dataList:
+                                labNumber = assignLabNum(line)
+                                dataList.remove('labNumber')
+                                lastDataRemoved = 'labNumber'
+                                skipPop = 1
+                                continue
                         if re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
                             if 'latLong' in dataList:
                                 if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
@@ -735,4 +734,4 @@ print("\n\n" + str(len(latLongProblemDict)) + " FILES HAVE PROBLEMS WITH LAT/LON
 printDictionarySorted(latLongProblemDict)
 
 #DEBUG PRINTING SECTION
-printListOfFiles(labNameDict)
+printListOfFiles(materialDatedDict)
