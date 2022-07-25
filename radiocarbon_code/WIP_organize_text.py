@@ -15,14 +15,26 @@ olderCheck = 0
 #show up on the next line
 longNextLine = 0
 
+validBadReadList = [
+    "bone",
+    "bones",
+    "antler",
+    "twigs"
+]
+
 #--------------------
 #     FUNCTIONS
 #--------------------
 def checkBadRead(text):
+    global validBadReadList
     #make sure to update this pattern with any other characters that show up
     if re.match('^[1479sligejromwtnkABHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
-        return 1
+        text = text.rstrip()
+        if text.lower() in validBadReadList:
+            return 0
+        else:
+            return 1
     else:
         #this is good, keep doing stuff
         return 0
@@ -397,6 +409,7 @@ for subDir, dirs, files in os.walk(sourceDir):
             olderCheck = 0
             longNextLine = 0
             lastDataRemoved = ""
+            locationCounter = 0
             skipPop = 0
             dataList = [
             'location',
@@ -479,14 +492,14 @@ for subDir, dirs, files in os.walk(sourceDir):
                         #    longNextLine = 0
                         #    continue
 
-                        if trimLine in materialList:
+                        if trimLine.lower() in materialList:
                             if 'materialDated' in dataList:
                                 materialDated = assignMatDated(line)
                                 dataList.remove('materialDated')
                                 lastDataRemoved = 'materialDated'
                                 skipPop = 1
                                 continue
-                        if re.search('(lab[^a])|(univ)|(u.s.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine):
+                        if re.search('(lab[^a]?)|(univ)|(u.s.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine):
                             if 'labName' in dataList:
                                 possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', line)
                                 if possibleLabNum != None:
@@ -576,7 +589,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('latLong')
                                     lastDataRemoved = 'latLong'
                                 continue
-                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(ground)|(atmo)', lowerLine):
+                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(ground)|(atmo)', trimLine):
                             if 'typeOfDate' in dataList:
                                 typeOfDate = assignTypeOfDate(line)
                                 if typeOfDate == "N/A":
@@ -600,7 +613,9 @@ for subDir, dirs, files in os.walk(sourceDir):
                             currentData = dataList[0]
 
                         if currentData == 'location':
-                            location += assignLocation(line)
+                            if locationCounter < 4:
+                                location += assignLocation(line)
+                                locationCounter += 1
                         elif currentData == 'materialDated':
                             materialDated += assignMatDated(line)
                         elif currentData == 'labName':
@@ -735,3 +750,4 @@ printDictionarySorted(latLongProblemDict)
 
 #DEBUG PRINTING SECTION
 printListOfFiles(materialDatedDict)
+printListOfFiles(labNameDict)
