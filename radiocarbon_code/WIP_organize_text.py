@@ -46,7 +46,7 @@ def assignMatDated(text):
     #matDated also doesn't have anything special. Assign as is
     return text + " "
 
-def assignLabName(text, dataList):
+def assignLabName(text):
     #this check was added since labNumber is commonly read
     #on the same line as the labName (or age)
     #if a match is found and labNumber hasn't already
@@ -103,9 +103,9 @@ def assignAge(text, dataList):
 
 def assignTypeOfDate(text):
     text = text.replace(' ', '')
-    if re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()):
-        return re.search('(geology)|(archaeology)|(archeology)|(paleontology)', text.lower()).group()
-    if re.search('(oceanography)|(oceanographic)|(miscellaneous)|(gaspropor)|(geo[-]?che)|(geo[-]?phy)|(ethno)|(ground)|(atmo)', text.lower()):
+    if re.search('(geology)|(archaeology)|(archeology)|(paleontology)|(oceanogra)|(geo[-]?che)|(geo[-]?phy)', text.lower()):
+        return re.search('(geology)|(archaeology)|(archeology)|(paleontology)|(oceanogra)|(geo[-]?che)|(geo[-]?phy)', text.lower()).group()
+    if re.search('(miscellaneous)|(gaspropor)|(ethno)|(ground)|(atmo)', text.lower()):
         return "CANNOT UPLOAD " + text
     if "pollen dated" in text.lower() or "pollen-dated" in text.lower() or "pollen" in text.lower() or "dated" in text.lower():
         return " "
@@ -508,7 +508,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                         labNumber = assignLabNum(possibleLabNum.group())
                                     line = line.replace(possibleLabNum.group(), '')
 
-                                labName = assignLabName(line, dataList)
+                                labName = assignLabName(line)
                                 dataList.remove('labName')
                                 lastDataRemoved = 'labName'
                                 skipPop = 1
@@ -564,7 +564,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 lastDataRemoved = 'labNumber'
                                 skipPop = 1
                                 continue
-                        if re.search('(lat[^i])|(long)|(unlocated)|(no lat)|(no location)|(not given)', line.lower()):
+                        if re.search('(lat[^i])|(long)|(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
                             if 'latLong' in dataList:
                                 if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
                                     latitude, longitude = assignLatLong(trimLine)
