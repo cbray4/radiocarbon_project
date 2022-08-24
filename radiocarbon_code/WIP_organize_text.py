@@ -19,7 +19,8 @@ validBadReadList = [
     "bone",
     "bones",
     "antler",
-    "twigs"
+    "twigs",
+    "treerings"
 ]
 
 #--------------------
@@ -31,7 +32,12 @@ def checkBadRead(text):
     if re.match('^[1479sligejromwtnkABHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
         #this is bad, throw it out
         text = text.rstrip()
-        if text.lower() in validBadReadList:
+        #sometimes the pattern above matches real words, often important words 
+        #we need to search for. validBadReadList contains the most common of these
+        #occurences, which we use to double check 
+        trimText = text.lower()
+        trimText = trimText.replace(' ', '')
+        if trimText in validBadReadList:
             return 0
         else:
             return 1
@@ -112,6 +118,9 @@ def assignTypeOfDate(text):
     else:
         return "N/A"
 
+#Runs through the checking algorithm for lat/long
+#isLong = 0 represents lat, isLong = 1 represents long
+#this flag changes what cardinal directions to search for (ns or ew)
 def latLongFunc(text, isLong):
     #Here's the rundown on what all of this bs is doing
     #Using regex we search for numbers. Whenever we find numbers
@@ -137,6 +146,7 @@ def latLongFunc(text, isLong):
             #be that little bit faster though? idk talk to Collin about it 
     #this is only my initial stab at it, so there is probably
     #a couple places where things can be improved but for now this works :)
+
     #print(text) #DEBUG
 
     if isLong == 0:
@@ -199,7 +209,10 @@ def assignLatLong(text):
     newText = str(text).lower()
     newText = newText.replace(' ', '')
     #splits the lat/long down the middle where the X is
-    #means that we don't have to do weird substring stuff
+    #by doing this we can run the same "algorithm" on 
+    #the two separate text areas, making the code take up less space
+    #if the x isn't in there due to OCR problems check for
+    #the long. Shortened to 'lon' in case OCR misses the g
     if 'x' in newText and 'tx' not in newText:
         latText, longText = newText.split('x',1) 
     elif 'lon' in newText:
@@ -212,11 +225,7 @@ def assignLatLong(text):
         return "N/A", "N/A"
 
     latitude = latLongFunc(latText, 0)
-    if False: #not re.search('\d+', longText):
-        longitude = ""
-        longNextLine = 1
-    else:
-        longitude = latLongFunc(longText, 1)
+    longitude = latLongFunc(longText, 1)
     
     return latitude, longitude
 
@@ -368,6 +377,7 @@ validAgeSearchList = [
     '>',
     '<',
     '^',
+    '%',
     'yr', 
     'yrs',
     'C14',
@@ -529,7 +539,12 @@ for subDir, dirs, files in os.walk(sourceDir):
 
                                 if ageAssigned == 1:
                                     continue
-                                if "C14" in age:
+                                if '%' in line:
+                                    age = "modern"
+                                    ageSigma = "0"
+                                    dataList.remove("age")
+                                    continue
+                                if "C14" in line or "C13" in line:
                                     cannotUploadList[file] = "C14/C13 Format, Fix Later"
                                     continue
                                 if '<' in line or '^' in line or '>' in line:
