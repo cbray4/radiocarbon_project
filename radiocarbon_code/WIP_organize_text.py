@@ -380,8 +380,8 @@ validAgeSearchList = [
     '%',
     'yr', 
     'yrs',
-    'C14',
-    'C13',
+    'c14',
+    'c13',
     'modern',
     'contemporary',
     'older than',
@@ -509,7 +509,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 lastDataRemoved = 'materialDated'
                                 skipPop = 1
                                 continue
-                        if re.search('(lab[^a]?)|(univ)|(u.s.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine):
+                        if re.search('(lab[^a]?)|(univ)|(u\.s\.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine): #Louisiana
                             if 'labName' in dataList:
                                 possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', line)
                                 if possibleLabNum != None:
@@ -523,7 +523,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 lastDataRemoved = 'labName'
                                 skipPop = 1
                                 continue
-                        if any(item in line for item in validAgeSearchList) and all(item not in lowerLine for item in invalidAgeSearchList):
+                        if any(item in lowerLine for item in validAgeSearchList) and all(item not in lowerLine for item in invalidAgeSearchList):
                             if 'age' in dataList:
                                 #this check was added since labNumber is commonly read
                                 #on the same line as the age (or labName)
@@ -586,7 +586,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 elif re.search('(lat)-+', trimLine):
                                     latitude = "Unlocated"
                                     longitude = "Unlocated"
-                                elif 'long' not in trimLine:
+                                elif 'lo' not in trimLine:
                                     latitude = latLongFunc(trimLine, 0)
                                     skipPop = 1
                                     continue
