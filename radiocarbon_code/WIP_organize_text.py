@@ -370,6 +370,15 @@ materialList = createMaterialsList()
 
 lastDataRemoved = ""
 
+materialInLabNameList = [
+    'organic material',
+    'organic residue',
+    'water',
+    'carbonaceous residue',
+    'charcoal and wood',
+    'groundwater'
+]
+
 validAgeSearchList = [
     '±',
     '+',
@@ -511,6 +520,17 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 continue
                         if re.search('(lab[^a]?)|(univ)|(u\.s\.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine): #Louisiana
                             if 'labName' in dataList:
+                                #Check for any materials that have been read in  
+                                #the same line as the lab name
+                                if 'materialDated' in dataList:
+                                    if any(item in lowerLine for item in materialInLabNameList):
+                                        tempRegexPattern = '(' + ')|('.join(materialInLabNameList) + ')'
+                                        matInName = re.search(tempRegexPattern, lowerLine)
+                                        materialDated = assignMatDated(matInName.group())
+                                        dataList.remove('materialDated')
+
+                                #Check for any lab numbers that have been read in 
+                                #the same line as the lab name
                                 possibleLabNum = re.search('[0-9a-zA-Z\-]{1,4}-(\d){1,4}', line)
                                 if possibleLabNum != None:
                                     if 'labNumber' in dataList:
@@ -753,6 +773,7 @@ print("Type Of Date Errors:", len(typeOfDateDict))
 #Print out the amount of files missing said data
 #and the percentage.
 print("\n***BEGIN ERROR LISTS***")
+writeToOutput(materialDatedDict, "Material Dated", fileCounter, file)
 writeToOutput(ageDict, "Age", fileCounter, file)
 writeToOutput(latLongDict, "Lat/Long", fileCounter, file)
 writeToOutput(typeOfDateDict, "Type Of Date", fileCounter, file)
@@ -764,5 +785,3 @@ print("\n\n" + str(len(latLongProblemDict)) + " FILES HAVE PROBLEMS WITH LAT/LON
 printDictionarySorted(latLongProblemDict)
 
 #DEBUG PRINTING SECTION
-printListOfFiles(materialDatedDict)
-printListOfFiles(labNameDict)
