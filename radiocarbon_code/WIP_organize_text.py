@@ -642,7 +642,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 if siteIdentifier.lower() in materialList:
                                     siteIdentifier = "Material In Place Of Identifier"
                                 dataList.remove('siteIdentifier')
-                            break
+                            continue
         #NOTE AREA
         #so one problem I've run into is that if the order is messed up at all
         #then the rest of the info gets ruined. So solve that.
