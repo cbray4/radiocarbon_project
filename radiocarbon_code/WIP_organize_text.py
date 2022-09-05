@@ -234,7 +234,7 @@ def getPercentage(num1, num2):
 
 #This function is the template used for writing out errors to the output file
 #simply replace relevantDict and varName with the right things and it works correctly
-def writeToOutput(relevantDict, varName, fileCounter, file):
+def writeToOutput(relevantDict, varName, fileCounter):
     print("\nFiles With " + varName + " Missing: " + str(len(relevantDict)))
     print("Percentage: " + str(getPercentage(len(relevantDict), fileCounter)) + "%")
     printDictionarySorted(relevantDict)
@@ -321,7 +321,7 @@ dataList = [
     'age',
     'latLong',
     'typeOfDate',
-    #'siteIdentifier',
+    'siteIdentifier',
 ]
 
 #used to calculate the percentage of files
@@ -362,7 +362,7 @@ labNumberDict = {}
 ageDict = {}
 latLongDict = {}
 typeOfDateDict = {}
-siteIdentifieDict = {}
+siteIdentifierDict = {}
 latLongProblemDict = {}
 cannotUploadList = {}
 
@@ -437,7 +437,8 @@ for subDir, dirs, files in os.walk(sourceDir):
             'labNumber',
             'age',
             'latLong',
-            'typeOfDate'
+            'typeOfDate',
+            'siteIdentifier'
             ]
 
             location = ""
@@ -518,7 +519,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 lastDataRemoved = 'materialDated'
                                 skipPop = 1
                                 continue
-                        if re.search('(lab[^a]?)|(univ)|(u\.s\.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)', trimLine): #Louisiana
+                        if re.search('(lab[^a]?)|(univ)|(u\.s\.)|(geol.sur)|(unit[^ed])|(packardinstrument)|(inst)|(div\.)', trimLine):
                             if 'labName' in dataList:
                                 #Check for any materials that have been read in  
                                 #the same line as the lab name
@@ -526,7 +527,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     if any(item in lowerLine for item in materialInLabNameList):
                                         tempRegexPattern = '(' + ')|('.join(materialInLabNameList) + ')'
                                         matInName = re.search(tempRegexPattern, lowerLine)
-                                        materialDated = assignMatDated(matInName.group())
+                                        materialDated = assignMatDated(matInName.group().capitalize())
+                                        line = line.replace(matInName.group().capitalize(), '')
                                         dataList.remove('materialDated')
 
                                 #Check for any lab numbers that have been read in 
@@ -624,7 +626,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('latLong')
                                     lastDataRemoved = 'latLong'
                                 continue
-                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(ground)|(atmo)', trimLine):
+                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(atmo)', trimLine): #(ground)
                             if 'typeOfDate' in dataList:
                                 typeOfDate = assignTypeOfDate(line)
                                 if typeOfDate == "N/A":
@@ -634,7 +636,13 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('typeOfDate')
                                     lastDataRemoved = 'typeOfDate'
                             continue
-
+                        if ":" in line:
+                            if 'siteIdentifier' in dataList:
+                                siteIdentifier, uselessForNow = line.split(':', 1)
+                                if siteIdentifier.lower() in materialList:
+                                    siteIdentifier = "Material In Place Of Identifier"
+                                dataList.remove('siteIdentifier')
+                            continue
         #NOTE AREA
         #so one problem I've run into is that if the order is messed up at all
         #then the rest of the info gets ruined. So solve that.
@@ -699,6 +707,8 @@ for subDir, dirs, files in os.walk(sourceDir):
                 cannotUploadList[file] = "Unlocated"
             if "CANNOT UPLOAD" in typeOfDate:
                 cannotUploadList[file] = "Unsupported Date Type, " + typeOfDate
+            if siteIdentifier == "":
+                siteIdentifierDict[file] = ""
 
             #Call function to double check variables to make sure they aren't incorrect
 
@@ -713,6 +723,7 @@ for subDir, dirs, files in os.walk(sourceDir):
             orgOutputFile.write("\n\nLatitude: " + latitude)
             orgOutputFile.write("\nLongitude: " + longitude)
             orgOutputFile.write("\n\nType Of Date: " + typeOfDate)
+            orgOutputFile.write("\n\nSite Identifier: " + siteIdentifier)
             orgOutputFile.close()
             readFile.close()
     else:
@@ -766,6 +777,7 @@ print("Lab Number Errors:", len(labNumberDict))
 print("Age Errors:", len(ageDict))
 print("Lat/Long Errors:", len(latLongDict))
 print("Type Of Date Errors:", len(typeOfDateDict))
+print("Site Identifier Errors:", len(siteIdentifierDict))
 
 #Begin printing out the content of each error list
 #be sure to update this whenever you add functionality
@@ -773,10 +785,11 @@ print("Type Of Date Errors:", len(typeOfDateDict))
 #Print out the amount of files missing said data
 #and the percentage.
 print("\n***BEGIN ERROR LISTS***")
-writeToOutput(materialDatedDict, "Material Dated", fileCounter, file)
-writeToOutput(ageDict, "Age", fileCounter, file)
-writeToOutput(latLongDict, "Lat/Long", fileCounter, file)
-writeToOutput(typeOfDateDict, "Type Of Date", fileCounter, file)
+writeToOutput(materialDatedDict, "Material Dated", fileCounter)
+writeToOutput(ageDict, "Age", fileCounter)
+writeToOutput(latLongDict, "Lat/Long", fileCounter)
+writeToOutput(typeOfDateDict, "Type Of Date", fileCounter)
+writeToOutput(siteIdentifierDict, "Site Identifier", fileCounter)
 
 print("\n\n" + str(len(cannotUploadList))+" FILES CANNOT BE UPLOADED DUE TO DATABASE CONFLICTS :(")
 printDictionarySorted(cannotUploadList)
