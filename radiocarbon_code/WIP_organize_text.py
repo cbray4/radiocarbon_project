@@ -636,13 +636,13 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('typeOfDate')
                                     lastDataRemoved = 'typeOfDate'
                             continue
-                        if ":" in line:
+                        if ":" in line and len(dataList) <= 3:
                             if 'siteIdentifier' in dataList:
                                 siteIdentifier, uselessForNow = line.split(':', 1)
                                 if siteIdentifier.lower() in materialList:
                                     siteIdentifier = "Material In Place Of Identifier"
                                 dataList.remove('siteIdentifier')
-                            continue
+                            break
         #NOTE AREA
         #so one problem I've run into is that if the order is messed up at all
         #then the rest of the info gets ruined. So solve that.
