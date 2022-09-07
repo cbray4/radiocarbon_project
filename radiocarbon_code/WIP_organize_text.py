@@ -204,23 +204,15 @@ def assignLatLong(text):
     #N = +, S = -
     #E = +, W = -
 
-    #converting to lowercase makes if statements much easier to read
-    #by allowing us to avoid checking for uppercase
-    newText = str(text).lower()
-    newText = newText.replace(' ', '')
     #splits the lat/long down the middle where the X is
     #by doing this we can run the same "algorithm" on 
     #the two separate text areas, making the code take up less space
     #if the x isn't in there due to OCR problems check for
     #the long. Shortened to 'lon' in case OCR misses the g
-    if 'x' in newText and 'tx' not in newText:
-        latText, longText = newText.split('x',1) 
-    elif 'lon' in newText:
-        latText, longText = newText.split('lon',1)
-    elif 'unlocated' in newText or 'nolat' in newText:
-        return "Unlocated", "Unlocated"
-    elif 'nolocation' in newText or 'notgiven' in newText:
-        return "Unlocated", "Unlocated"
+    if 'x' in text and 'tx' not in text:
+        latText, longText = text.split('x',1) 
+    elif 'lon' in text:
+        latText, longText = text.split('lon',1)
     else:
         return "N/A", "N/A"
 
@@ -601,10 +593,11 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 lastDataRemoved = 'labNumber'
                                 skipPop = 1
                                 continue
-                        if re.search('(lat[^i])|(long)|(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
+                        if re.search('(lat[^i])|(long)|(unlocated)|(nolat)|(nolocation)|(notgiven)|(unknown)', trimLine):
                             if 'latLong' in dataList:
-                                if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)', trimLine):
-                                    latitude, longitude = assignLatLong(trimLine)
+                                if re.search('(unlocated)|(nolat)|(nolocation)|(notgiven)|(unknown)', trimLine):
+                                    latitude = "Unlocated"
+                                    longitude = "Unlocated"
                                 elif re.search('(lat)-+', trimLine):
                                     latitude = "Unlocated"
                                     longitude = "Unlocated"
@@ -612,7 +605,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     latitude = latLongFunc(trimLine, 0)
                                     skipPop = 1
                                     continue
-                                elif 'lat' not in trimLine:
+                                elif 'la' not in trimLine:
                                     longitude = latLongFunc(trimLine, 1)
                                     skipPop = 1
                                 else:
@@ -636,12 +629,13 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('typeOfDate')
                                     lastDataRemoved = 'typeOfDate'
                             continue
-                        if ":" in line and len(dataList) <= 3:
+                        if (":" in line) and len(dataList) <= 3:
                             if 'siteIdentifier' in dataList:
                                 siteIdentifier, uselessForNow = line.split(':', 1)
                                 if siteIdentifier.lower() in materialList:
                                     siteIdentifier = "Material In Place Of Identifier"
                                 dataList.remove('siteIdentifier')
+                                dataList.remove('location')
                             continue
         #NOTE AREA
         #so one problem I've run into is that if the order is messed up at all
