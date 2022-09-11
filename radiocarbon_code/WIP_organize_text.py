@@ -20,7 +20,8 @@ validBadReadList = [
     "bones",
     "antler",
     "twigs",
-    "treerings"
+    "treerings",
+    "moss"
 ]
 
 #--------------------
@@ -69,7 +70,7 @@ def assignLabNum(text):
 #it does not get written correctly
 #consider making a flag so that if this is called
 #multiple times it only takes the first line given
-def assignAge(text, dataList):
+def assignAge(text):
     global ageAssigned, olderCheck
 
     if olderCheck == 1:
@@ -565,7 +566,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     if not re.search('\d+', line):
                                         pass
                                     else:
-                                        age, ageSigma = assignAge(line, dataList)
+                                        age, ageSigma = assignAge(line)
                                         if age == "N/A":
                                             ageDict[file] = line
                                         elif olderCheck == 1:
@@ -576,7 +577,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                             lastDataRemoved = 'age'
                                         continue
                                 else: 
-                                    age, ageSigma = assignAge(line, dataList)
+                                    age, ageSigma = assignAge(line)
                                     if age == "N/A":
                                         ageDict[file] = line
                                     elif olderCheck == 1:
@@ -654,26 +655,33 @@ for subDir, dirs, files in os.walk(sourceDir):
                                 location += assignLocation(line)
                                 locationCounter += 1
                         elif currentData == 'materialDated':
-                            materialDated += assignMatDated(line)
+                            #materialDated += assignMatDated(line)
+                            materialDatedDict[file] = line + " currentData Error"
                         elif currentData == 'labName':
-                            labName = assignLabName(line, dataList)
+                            #labName = assignLabName(line)
+                            labNameDict[file] = line + " currentData Error"
                         elif currentData == 'labNumber':
-                            labNumber = assignLabNum(line)
+                            #labNumber = assignLabNum(line)
                             labNumberDict[file] = line + " currentData Error"
                         elif currentData == 'age':
-                            age, ageSigma = assignAge(line, dataList)
+                            #age, ageSigma = assignAge(line)
+                            ageDict[file] = line + " currentData Error"
                             if age == "N/A" or ageSigma == "N/A":
                                 ageDict[file] = line + " currentData Error"
                         elif currentData == 'latLong':
-                            latitude, longitude = assignLatLong(line)
+                            #latitude, longitude = assignLatLong(line)
+
                             #If Lat and Long are separated onto two different lines
                             #some stuff needs to happen 
+                            latLongDict[file] = line + " currentData Error"
+
                             if latitude == "N/A" or longitude == "N/A":
                                 latLongDict[file] = line + " currentData Error"
                             if latitude == "numprob" or longitude == "numprob":
                                 latLongProblemDict[file] = line + " currentData Error"
                         elif currentData == 'typeOfDate':
-                            typeOfDate = assignTypeOfDate(line)
+                            #typeOfDate = assignTypeOfDate(line)
+                            typeOfDateDict[file] = line + " currentData Error"
                             if typeOfDate == "N/A":
                                 typeOfDateDict[file] = line + " currentData Error"
                     else:
