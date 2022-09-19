@@ -15,6 +15,8 @@ olderCheck = 0
 #show up on the next line
 longNextLine = 0
 
+#A list of words that the bad read regex
+#mistakes for "bad" lines
 validBadReadList = [
     "bone",
     "bones",
@@ -27,15 +29,20 @@ validBadReadList = [
 #--------------------
 #     FUNCTIONS
 #--------------------
+
+#The OCR initially ran on the cards recognizes the hole punches
+#as characters sometimes, so the regex in this function checks for 
+#lines that follow the pattern. Most typically they come in the form
+#of things like "I;:i" but sometimes they'll be read in as random symbols.
+#A return value of 1 means that the line is "bad" and should be ignored
+#A return value of 0 means that it's good
 def checkBadRead(text):
     global validBadReadList
-    #make sure to update this pattern with any other characters that show up
     if re.match('^[1479sligejromwtnkABHMWOVPQTI.:;•%«»<>%*►■♦§°®^“’‘\'|!f*/#_„,\-—( ]*$', text) and text != "\n":
-        #this is bad, throw it out
-        text = text.rstrip()
         #sometimes the pattern above matches real words, often important words 
         #we need to search for. validBadReadList contains the most common of these
         #occurences, which we use to double check 
+        text = text.rstrip()
         trimText = text.lower()
         trimText = trimText.replace(' ', '')
         if trimText in validBadReadList:
@@ -46,30 +53,30 @@ def checkBadRead(text):
         #this is good, keep doing stuff
         return 0
 
+#The four following functions originally had a lot more code in them
+#but as methods changed, a lot of it was moved outside of these functions
+#and into the main body of code so that I could access certain variables 
+#more easily. They still exist in case I need to change things.
 def assignLocation(text):
     return text + " "
 
 def assignMatDated(text):
-    #matDated also doesn't have anything special. Assign as is
     return text + " "
 
 def assignLabName(text):
-    #this check was added since labNumber is commonly read
-    #on the same line as the labName (or age)
-    #if a match is found and labNumber hasn't already
-    #been assigned something, get that part of the string out
-    #and assign labNumber
     return text
 
 def assignLabNum(text):
-    #labNumber doesn't really have anything special for it, just assign it as is
     return text
 
-#PROBLEM
-#If the age section has more than one line
-#it does not get written correctly
-#consider making a flag so that if this is called
-#multiple times it only takes the first line given
+#Due to the large number of formats for ages, there are many
+#checks within this function to ensure that variables are 
+#assigned correctly. The typical format is ##±## yr(s)
+#Split it at the ± symbol and assign accordingly. 
+#Sometimes the symbol is read in as something else, so we
+#make sure to check for those as well.
+#Most of the other things are where words are used in place
+#of symbols, or a card is stated to be "modern"
 def assignAge(text):
     global ageAssigned, olderCheck
 
@@ -107,12 +114,15 @@ def assignAge(text):
     else:
         return "N/A", "N/A"
     
-
+#Sorts through all the different types of dates
+#and returns the correct CARD compliant type.
 def assignTypeOfDate(text):
     text = text.replace(' ', '')
-    if re.search('(geology)|(archaeology)|(archeology)|(paleontology)|(oceanogra)|(geo[-]?che)|(geo[-]?phy)', text.lower()):
-        return re.search('(geology)|(archaeology)|(archeology)|(paleontology)|(oceanogra)|(geo[-]?che)|(geo[-]?phy)', text.lower()).group()
-    if re.search('(miscellaneous)|(gaspropor)|(ethno)|(ground)|(atmo)', text.lower()):
+    if re.search('(geo[^r])|(oceanogra)', text.lower()):
+        return "geological"
+    elif re.search('(archaeology)|(paleontology)', text.lower()):
+        return re.search('(archaeology)|(paleontology)', text.lower()).group()
+    if re.search('(misc)|(gaspropor)|(ethno)|(atmo)', text.lower()):
         return "CANNOT UPLOAD " + text
     if "pollen dated" in text.lower() or "pollen-dated" in text.lower() or "pollen" in text.lower() or "dated" in text.lower():
         return " "
@@ -123,30 +133,23 @@ def assignTypeOfDate(text):
 #isLong = 0 represents lat, isLong = 1 represents long
 #this flag changes what cardinal directions to search for (ns or ew)
 def latLongFunc(text, isLong):
-    #Here's the rundown on what all of this bs is doing
-    #Using regex we search for numbers. Whenever we find numbers
-    #we assign them to variables latNum/longNum
+    #Here's the rundown on what all of this is doing
+    #Using regex we search for numbers. Whatever we find first
+    #we assign to the variable num1
     #after the first number we have to take into account three cases;
     #1) there is only one number for lat/long
-        #this happens when latNum2 = cardinal direction
-        #if this is the case, set latMod accordingly
-        #and set latNum2/3 = 0
+        #this happens when num2 = (ns or ew)
+        #if this is the case, set modifier based on cardinal direction
+        #and set num2/3 = 0
     #2) there are two numbers for lat/long
-        #this happens when latNum3 = cardinal direction
+        #this happens when num3 = (ns or ew)
     #3) there are three numbers for lat/long
-        #when this happens, we have to do one more search
-        #for the cardinal direction
+        #when this happens, we have to do one more search for ns or ew
     #since there's these three cases we have to do a lot of wacky if statements
-    #re.search() returns its own object type called matchObject
+    #NOTE: re.search() returns its own object type called matchObject
     #matchObject.group() returns the text that was matched in the given string
     #so that's why it is used when calculating the lat/long
     #this is also why when setting things to zero I use re.search()
-            #maybe I should set these vars to just the .group() strings?
-            #that would get rid of the need to re.search() 
-            #for things that should = 0. Does it *need* to
-            #be that little bit faster though? idk talk to Collin about it 
-    #this is only my initial stab at it, so there is probably
-    #a couple places where things can be improved but for now this works :)
 
     #print(text) #DEBUG
 
@@ -201,12 +204,12 @@ def latLongFunc(text, isLong):
 
 def assignLatLong(text):
     global longNextLine
-    #FORMAT: Lat. ##°(##'##") x Long. ##°(##'##")
+    #FORMAT: Lat. ##°(##'##")(N/S) x Long. ##°(##'##")(E/W)
     #N = +, S = -
     #E = +, W = -
 
     #splits the lat/long down the middle where the X is
-    #by doing this we can run the same "algorithm" on 
+    #by doing this we can run the same algorithm on 
     #the two separate text areas, making the code take up less space
     #if the x isn't in there due to OCR problems check for
     #the long. Shortened to 'lon' in case OCR misses the g
@@ -222,24 +225,31 @@ def assignLatLong(text):
     
     return latitude, longitude
 
+#Used to display error percentages in the output
 def getPercentage(num1, num2):
     return round(num1/num2 * 100, 2)
 
-#This function is the template used for writing out errors to the output file
-#simply replace relevantDict and varName with the right things and it works correctly
+#This function is the template used for writing out all errors to the output file
+#simply replace relevantDict and varName with what you want to be displayed
 def writeToOutput(relevantDict, varName, fileCounter):
     print("\nFiles With " + varName + " Missing: " + str(len(relevantDict)))
     print("Percentage: " + str(getPercentage(len(relevantDict), fileCounter)) + "%")
     printDictionarySorted(relevantDict)
 
+#Gets the actual amount of files that have errors
+#instead of just adding the error numbers up
 def numOfUniqueKeys(listOfDicts):
     keys = list(set(chain.from_iterable(sub.keys() for sub in listOfDicts)))
     return keys
 
+#Reads through valid_materials.txt and appends the items to a list
+#valid_materials contains a (hopefully) comprehensive list of materials
+#that show up on the cards, so if a line has a material that is in this list
+#then it is good to add onto the organized text files.
 def createMaterialsList():
     returnThisList = []
 
-    #Open up the valid materials file and start reading in them lines
+    #Open up the valid materials file and start reading in thoses lines
     matFile = open('valid_materials.txt', 'r')
     fileLines = matFile.readlines()
 
@@ -255,16 +265,15 @@ def createMaterialsList():
 
 #Give this function a dictionary and it will print out
 #a list of all the files missing things from that dictionary
+#Usually used for debugging since writeToOutput is meant to 
+#be more "permanent"
 def printListOfFiles(relevantDict):
     print("\n\n", len(relevantDict), "files in relevantDict are missing items")
     printDictionarySorted(relevantDict)
 
-#
-def addToPossibleMaterials(text):
-    possibleFile = open("possible_materials.txt", 'w')
-    possibleFile.write(text)
-    possibleFile.close()
-
+#The order that the files are read does not follow
+#any readily apparent pattern, so this sorts it in
+#ascending order, lowest file number to highest
 def printDictionarySorted(dict):
     newList = []
     for key in dict:
@@ -273,38 +282,9 @@ def printDictionarySorted(dict):
     for key in newList:
         print(key, "->", dict[key])
 
-#Send in dataList for this function.
-#To be used before continue statements
-#in the pattern searching section
-def removeLocation(dataList):
-    if 'location' in dataList:
-        dataList.remove('location')
-    return dataList
-
-#--------------------
-#       NOTES
-#--------------------
-#consider adding more attention to detail in the main code portion
-#when assigning things. Does this line have lat/long in it? does it have
-#the +- symbol? If so, then it is probably a different variable
-#so you should call a different function
-#   '[0-9a-z\-]+-(\d)+'
-#   ^ regex pattern for lab numbers. 
-
-
 #--------------------
 #     CODE START
 #--------------------
-#Used to keep track of which piece of info we are on
-#convenient chart below for reference
-infoCounter = 0
-#   0 : location
-#   1 : materialDated
-#   2 : labName
-#   3 : labNumber
-#   4 : age, ageSigma
-#   5 : latitude, longitude
-#   6 : typeOfDate
 
 dataList = [
     'location',
@@ -314,7 +294,8 @@ dataList = [
     'age',
     'latLong',
     'typeOfDate',
-    'siteIdentifier',
+    'siteName',
+    'references'
 ]
 
 #used to calculate the percentage of files
@@ -326,14 +307,19 @@ fileCounter = 0
 #holes on the sides of the images
 badRead = 0
 
-#this will be used to limit things I guess. 
+#Originally used to prevent extra lines from being
+#read in before I was getting the references
+#since a lot of random lines were getting put into the location.
 itemCounter = 0
 
-#setup directory variables
+#These two variables decide the directories that the script will read to
+#and output to. Change these when testing new OCR or if you're on a different machine
 sourceDir = "/project/arcc-students/cbray3/radiocarbon_text/raw_output/"
 rootOutputDir = "/project/arcc-students/cbray3/radiocarbon_text/organized_output/"
 
-#The necessary information that the database needs
+#These are the data that will be uploaded to the CARD database
+#All of these except for Location have key identifiers/patterns
+#that make it "simple" to search for them in the text files.
 location = ""
 materialDated = ""
 labName = ""
@@ -343,11 +329,12 @@ ageSigma = ""
 latitude = ""
 longitude = ""
 typeOfDate = ""
-siteIdentifier = ""
+siteName = ""
+references = ""
 
-#For these dictionaries, add file names of items that are set as N/A
-#i.e. if Age from 153_text is set as N/A, add 153 to ageList
-#remember, nameDict[file] = whatever is how you add new entries
+#These dictionaries are used to keep track of errors.
+#Most commonly errors where a piece of data simply isn't found
+#
 locationDict = {}
 materialDatedDict = {}
 labNameDict = {}
@@ -355,14 +342,24 @@ labNumberDict = {}
 ageDict = {}
 latLongDict = {}
 typeOfDateDict = {}
-siteIdentifierDict = {}
+siteNameDict = {}
+referencesDict = {}
+#This dictionary is specifically for latLong lines
+#where the OCR screwed up and put letters or symbols
+#instead of numbers
 latLongProblemDict = {}
+#List of items that aren't compatible with the CARD database
+#This means: Incompatible type of date or things with Lat/Long missing
 cannotUploadList = {}
 
 materialList = createMaterialsList()
 
+#Was originally going to be used for certain edge cases
+#such as lat/long being split up, or getting location
+#removed from the dataList, but otherwise isn't used
 lastDataRemoved = ""
 
+#A list of common materials found on lines with a lab name
 materialInLabNameList = [
     'organic material',
     'organic residue',
@@ -372,6 +369,8 @@ materialInLabNameList = [
     'groundwater'
 ]
 
+#it is easier to write a list then a long if statement
+#with a lot of "or"s in it.
 validAgeSearchList = [
     '±',
     '+',
@@ -391,6 +390,8 @@ validAgeSearchList = [
     'apparent age'
 ]
 
+#sometimes the 'yr' in above will match with actual words
+#these are most of the instances that I spotted
 invalidAgeSearchList = [
     'myrtle',
     'syria',
@@ -400,28 +401,58 @@ invalidAgeSearchList = [
     'anadyr',
     'ingsmyr',
     'myren',
+    'myra',
     'akureyri',
     'styria',
     'veyrins',
     'kyriat',
 ]
 
+#somtimes these are put into the location variable
+#we don't want these in the location variable
+locationExclusionList = [
+    "pollen-dated",
+    "gas proportional",
+    "gas geiger",
+]
+
+#this ensures that the directory reading
+#for loop works correctly
 skipFirst = 0
 
+#I'll be honest I got this directory walking code from Stack Exchange
+#https://stackoverflow.com/questions/19587118/iterating-through-directories-with-python
+#Fairly certain this is the post I got it from.
+#Since the card text is separated into separate subfolders based on number
+#I have to be able to go through each of those, this for loop does that automatically
+#subDir is basically each folder underneath sourceDir, the for loop iterates through
+#these after each loop, automating the process instead of going through a list
+#I do not think there is any specific pattern that it walks through the folders in
+#files is all the files underneath each subDir, that's how we get the raw text files to read in
+#dirs is not used, it's there to make sure the iteration works (I think)
 for subDir, dirs, files in os.walk(sourceDir):
     if skipFirst == 1:
+        #This grabs the subfolder name, for example
+        #raw_output/7-599/ turns into just 7-599
+        #attach that to our base output directory
+        #and you are now under the right subfolder
         wantedDir = os.path.basename(os.path.normpath(subDir))
         outputDir = rootOutputDir + wantedDir + "/"
+        #This only comes into play the first time you run this script
+        #if outputDir does not exist, make the subfolder please
         if not os.path.exists(outputDir):
             os.makedirs(outputDir)
+        #Now that we are in a subfolder in our sourceDir
+        #and outputDir, we can start going through the files
         for file in files:
-            #reset counters/flags here :)
+            #reset counters/flags/variables here :)
             itemCounter = 0
             ageAssigned = 0
             olderCheck = 0
             longNextLine = 0
             lastDataRemoved = ""
             locationCounter = 0
+            referenceCounter = 0
             skipPop = 0
             dataList = [
             'location',
@@ -431,9 +462,13 @@ for subDir, dirs, files in os.walk(sourceDir):
             'age',
             'latLong',
             'typeOfDate',
-            'siteIdentifier'
+            'siteName',
+            'references'
             ]
 
+            #Gotta make sure to reset these or else
+            #you get data from previous cards being
+            #put into cards read afterwards
             location = ""
             materialDated = ""
             labName = ""
@@ -443,68 +478,71 @@ for subDir, dirs, files in os.walk(sourceDir):
             latitude = ""
             longitude = ""
             typeOfDate = ""
-            siteIdentifier = ""
+            siteName = ""
+            references = ""
 
             if file.endswith(".txt"):
                 fileCounter += 1
-                #open file and read line by line and check for stuff
+                #open file and read in all the lines
+                #the algorithm checks line by line, so 
+                #we use a for loop to iterate through those
                 readFile = open(subDir+"/"+file, 'r')
                 linesInFile = readFile.readlines()
 
+                #if the script is stopping for some unknown reason
+                #use this statement to see which file it stops at
                 #print("beginning read of " + str(file)) #DEBUG
 
                 for line in linesInFile:
                     if checkBadRead(line) == 0:
                         if line == '\n' and badRead == 0:
-                            #print("infoCounter increased.") #DEBUG
+                            #print("itemCounter increased.") #DEBUG
                             itemCounter += 1
-                            if len(dataList) == 1 or itemCounter == 9:
+
+                            #The script should stop either when the dataList has all 
+                            #of its items removed, or too many lines have been read in
+                            if len(dataList) == 0 or itemCounter == 12:
                                 break
-                            #if skipPop == 0 and 'location' not in dataList:  
-                            #    lastDataRemoved = dataList.pop(0)
-                            #elif lastDataRemoved != "" and location != "" and 'location' in dataList:
-                            #    lastDataRemoved = dataList.pop(0)
-                            #    skipPop = 0
-                            #else:
-                            #    skipPop = 0
                             continue
+                        #If we have a bad read, we just skip past that line
+                        #typically because it is going to be a '\n' character
                         elif badRead == 1:
                             badRead = 0
                             continue
+                        #We have to remove the pesky newline character
+                        #off the ends of the lines, or else a lot of this
+                        #algorithm just doesn't work (mainly string comparisons)
                         line = line.rstrip()
                         #print(repr(line)) #DEBUG
 
-                        if re.search('A *. *D *.', line):
+                        #There are certain lines that are just useless or we want to skip entirely
+                        #These are where we check for them. For now we check for age lines
+                        #that have "A.D." or "B.C.", we also check for "liquid scintilation"
+                        #which kept getting put into the location. We don't want that
+                        if re.search('(A *\. *D *\.)|(B *\. *C *\.)|(liquid scin)', line):
                             continue
-                        elif re.search('B *. *C *.', line) or re.search('liquid scin', line.lower()):
-                            continue
+                        #If I remember correctly these are extra info for certain fields that aren't
+                        #necessary, so we just skip em'
                         elif 'corrected' in line.lower() or 'solid carbon' in line.lower():
                             skipPop = 1
                             continue
                         
                         
-                        #Begin checking for specific variables in each line
+                        #Now is where we begin the search for data
+                        #Each piece of data has symbols and formats we can
+                        #search for using regular expressions or string matching
+                        #so we just do a lot of that. If it doesn't match any of that
+                        #it is most likely a location
 
-                        #   0 : location
-                        #   1 : materialDated
-                        #   2 : labName
-                        #   3 : labNumber
-                        #   4 : age, ageSigma
-                        #   5 : latitude, longitude
-                        #   6 : typeOfDate
-
-                        #Make sure to remove data from the list after these
-                        #and to make skipPop = 1
-
+                        #trimLine is used when we want to get rid of spaces
+                        #a lot of the time the OCR goofs and adds spaces 
+                        #in between letters where we don't want them, so
+                        #we use trimLine to reduce the amount of errors that causes
                         trimLine = line.replace(' ', '')
                         trimLine = trimLine.lower()
                         lowerLine = line.lower()
 
-                        #if longNextLine == 1:
-                        #    longitude = latLongFunc(trimLine, 1)
-                        #    longNextLine = 0
-                        #    continue
-
+                        #An explanation of these checks SHOULD be in the readme on github
                         if trimLine.lower() in materialList:
                             if 'materialDated' in dataList:
                                 materialDated = assignMatDated(line)
@@ -620,7 +658,7 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('latLong')
                                     lastDataRemoved = 'latLong'
                                 continue
-                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(atmo)', trimLine): #(ground)
+                        if re.search('(geo[^r])|(archaeology)|(paleontology)|(oceano)|(misc)|(gaspropor)|(ethno)|(atmo)', trimLine):
                             if 'typeOfDate' in dataList:
                                 typeOfDate = assignTypeOfDate(line)
                                 if typeOfDate == "N/A":
@@ -630,55 +668,53 @@ for subDir, dirs, files in os.walk(sourceDir):
                                     dataList.remove('typeOfDate')
                                     lastDataRemoved = 'typeOfDate'
                             continue
-                        if (":" in line) and len(dataList) <= 3:
-                            if 'siteIdentifier' in dataList:
-                                siteIdentifier, uselessForNow = line.split(':', 1)
-                                if siteIdentifier.lower() in materialList:
-                                    siteIdentifier = "Material In Place Of Identifier"
-                                dataList.remove('siteIdentifier')
+                        if (":" in line or ";" in line) and len(dataList) <= 3:
+                            if 'siteName' in dataList:
+                                if ":" in line:
+                                    siteName, uselessForNow = line.split(':', 1)
+                                if ";" in line:
+                                    siteName, uselessForNow = line.split(';', 1)
+                                if siteName.lower() in materialList:
+                                    siteName = "Material In Place Of Identifier"
+                                dataList.remove('siteName')
                                 dataList.remove('location')
-                            continue
-        #NOTE AREA
-        #so one problem I've run into is that if the order is messed up at all
-        #then the rest of the info gets ruined. So solve that.
-        #main idea is to check for the ones that are most likely to break
-        #(Age/LatLong) and have specific checks for their unique symbols
-        #Once they've been put in set a flag or increase infoCounter,
-        #something along those lines.
+                                continue
+                        if re.search('(volume)|(pg)|(p\.)|(radiocarbon)|(journal)|(press)', trimLine):
+                            if "references" in dataList:
+                                if re.search('inc', trimLine):
+                                    continue
+                                references += line + "; "
+                                referenceCounter += 1
+                                if referenceCounter >= 2:
+                                    dataList.remove("references")
+                                    lastDataRemoved = "references"
+                                continue
+
+                        #If the last dataList entry is removed we 
+                        #should stop reading through the file
                         if not dataList:
                             break
                         else:
                             currentData = dataList[0]
 
+                        #more likely than not location is going to be at the top of the dataList
+                        #so anything that doesn't match with the above is going into location
                         if currentData == 'location':
-                            if locationCounter < 4:
+                            if locationCounter < 4 and len(line) <= 30 and all(item not in lowerLine for item in locationExclusionList):
                                 location += assignLocation(line)
                                 locationCounter += 1
                         elif currentData == 'materialDated':
-                            #materialDated += assignMatDated(line)
                             materialDatedDict[file] = line + " currentData Error"
                         elif currentData == 'labName':
-                            #labName = assignLabName(line)
                             labNameDict[file] = line + " currentData Error"
                         elif currentData == 'labNumber':
-                            #labNumber = assignLabNum(line)
                             labNumberDict[file] = line + " currentData Error"
                         elif currentData == 'age':
-                            #age, ageSigma = assignAge(line)
                             ageDict[file] = line + " currentData Error"
                             if age == "N/A" or ageSigma == "N/A":
                                 ageDict[file] = line + " currentData Error"
                         elif currentData == 'latLong':
-                            #latitude, longitude = assignLatLong(line)
-
-                            #If Lat and Long are separated onto two different lines
-                            #some stuff needs to happen 
                             latLongDict[file] = line + " currentData Error"
-
-                            if latitude == "N/A" or longitude == "N/A":
-                                latLongDict[file] = line + " currentData Error"
-                            if latitude == "numprob" or longitude == "numprob":
-                                latLongProblemDict[file] = line + " currentData Error"
                         elif currentData == 'typeOfDate':
                             #typeOfDate = assignTypeOfDate(line)
                             typeOfDateDict[file] = line + " currentData Error"
@@ -709,10 +745,10 @@ for subDir, dirs, files in os.walk(sourceDir):
                 cannotUploadList[file] = "Unlocated"
             if "CANNOT UPLOAD" in typeOfDate:
                 cannotUploadList[file] = "Unsupported Date Type, " + typeOfDate
-            if siteIdentifier == "":
-                siteIdentifierDict[file] = ""
-
-            #Call function to double check variables to make sure they aren't incorrect
+            if siteName == "":
+                siteNameDict[file] = ""
+            if references == "":
+                referencesDict[file] = ""
 
             orgOutputFile = open(outputDir+file[:len(file)-4]+"_organized.txt", 'w')
             #Begin Writing To Text Files
@@ -725,18 +761,14 @@ for subDir, dirs, files in os.walk(sourceDir):
             orgOutputFile.write("\n\nLatitude: " + latitude)
             orgOutputFile.write("\nLongitude: " + longitude)
             orgOutputFile.write("\n\nType Of Date: " + typeOfDate)
-            orgOutputFile.write("\n\nSite Identifier: " + siteIdentifier)
+            orgOutputFile.write("\n\nSite Name: " + siteName)
+            orgOutputFile.write("\n\nReferences: " + references)
             orgOutputFile.close()
             readFile.close()
     else:
         skipFirst = 1
         continue
     #End Of Directory Reading
-
-#NOTE CHANGE THIS TO ITERATE THROUGH THE WHOLE LIST
-#THAT MEANS YOU NEED TO MAKE A LIST CONTAINING ALL THE DICTS
-#THIS WOULD MAKE ITERATING THROUGH ALL OF THESE OTHER THINGS
-#A LOT EASIER TOO. DO THAT ON MONDAY :)
 
 listOfDicts = [
     locationDict,
@@ -779,7 +811,8 @@ print("Lab Number Errors:", len(labNumberDict))
 print("Age Errors:", len(ageDict))
 print("Lat/Long Errors:", len(latLongDict))
 print("Type Of Date Errors:", len(typeOfDateDict))
-print("Site Identifier Errors:", len(siteIdentifierDict))
+print("Site Name Errors:", len(siteNameDict))
+print("References Errors: ", len(referencesDict))
 
 #Begin printing out the content of each error list
 #be sure to update this whenever you add functionality
@@ -791,7 +824,8 @@ writeToOutput(materialDatedDict, "Material Dated", fileCounter)
 writeToOutput(ageDict, "Age", fileCounter)
 writeToOutput(latLongDict, "Lat/Long", fileCounter)
 writeToOutput(typeOfDateDict, "Type Of Date", fileCounter)
-writeToOutput(siteIdentifierDict, "Site Identifier", fileCounter)
+writeToOutput(siteNameDict, "Site Name", fileCounter)
+writeToOutput(referencesDict, "References", fileCounter)
 
 print("\n\n" + str(len(cannotUploadList))+" FILES CANNOT BE UPLOADED DUE TO DATABASE CONFLICTS :(")
 printDictionarySorted(cannotUploadList)
